@@ -24,6 +24,13 @@ class Top extends Module {
   iCache.io.fence := core.ioFenceI
   dCache.io.fence := core.ioFenceI
 
+  // fence.i 排序：D$ 排空（写回）完成前，I$ 暂停对外服务，避免读回旧值
+  val fenceOrder = RegInit(false.B)
+  when(core.ioFenceI) { fenceOrder := true.B }
+  when(dCache.io.fenceDone) { fenceOrder := false.B }
+  iCache.io.hold := fenceOrder
+  dCache.io.hold := false.B
+
   // I$/D$ 统一存储侧 -> 单一仲裁 -> 单一 AXI 适配器
   iCache.io.mem <> arbiter.io.in0
   dCache.io.mem <> arbiter.io.in1

@@ -21,9 +21,11 @@ class MemResolve extends Bundle {
 // 唯一存储器侧接口 io.mem（统一 MemPort），行访问 size=Line，字访问 size=B/H/W。
 class L1Cache extends Module {
   val io = IO(new Bundle {
-    val cpu   = Flipped(new MemPort) // CPU 侧（字访问，从侧）
-    val mem   = new MemPort          // 存储器侧（统一请求，主侧）
-    val fence = Input(Bool())        // fence.i：回写脏行并全清
+    val cpu       = Flipped(new MemPort) // CPU 侧（字访问，从侧）
+    val mem       = new MemPort          // 存储器侧（统一请求，主侧）
+    val fence     = Input(Bool())        // fence.i：回写脏行并全清
+    val hold      = Input(Bool())        // 排空完成后仍暂停对外服务（等待排序）
+    val fenceDone = Output(Bool())       // 排空完成脉冲
   })
 
   val lineBits = Config.Cache.LineBits
@@ -152,7 +154,7 @@ class L1Cache extends Module {
   val drainWb  = RegInit(false.B)
 
   val uncached = !cacheable
-  io.cpu.req.ready := Mux(uncached, io.mem.req.ready, (state === sIdle) && !draining)
+  io.cpu.req.ready := Mux(uncached, io.mem.req.ready, (state === sIdle) && !draining && !io.hold)
   val reqFire   = io.cpu.req.valid && io.cpu.req.ready
   val needEvict = !hit && dirty(victim)(index)
 
@@ -257,6 +259,8 @@ class L1Cache extends Module {
   val curIdx   = (drainCnt / Config.Cache.NumWays.U)(Config.Cache.IndexWidth - 1, 0)
   val curDirty = dirty(curWay)(curIdx)
   val total    = Config.Cache.NumSets * Config.Cache.NumWays
+
+  io.fenceDone := draining && (drainCnt === total.U)
 
   when(!draining && io.fence && state === sIdle) {
     draining := true.B
