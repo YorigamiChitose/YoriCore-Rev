@@ -1,0 +1,8 @@
+/*
+
+!/src/
+!/.gitignore
+!/mkscript
+!/.scalafmt.conf
+!/build.mill
+!/Makefile
