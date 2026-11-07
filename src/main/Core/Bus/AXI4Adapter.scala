@@ -28,6 +28,7 @@ class AXI4Adapter extends Module {
   val rSize  = RegInit(0.U(2.W))
   val rData  = RegInit(0.U(lineBits.W))
   val rStrb  = RegInit(0.U((lineBits / 8).W))
+  val rAmo   = RegInit(0.U(4.W))
   val rAcc   = RegInit(0.U(lineBits.W))
 
   val isLine = rSize === MemSize.Line
@@ -66,7 +67,8 @@ class AXI4Adapter extends Module {
   io.mem.req.ready      := state === sIdle
   io.mem.resp.valid     := state === sResp
   io.mem.resp.bits.rdata := rAcc
-  io.mem.resp.bits.err  := false.B
+  // 不可缓存地址上的原子操作（amoOp=/=NOP）不受支持，到达边界即报总线错误（方案 1）
+  io.mem.resp.bits.err  := rAmo =/= AmoOp.NOP
 
   // 请求锁存
   when(state === sIdle && io.mem.req.valid) {
@@ -75,6 +77,7 @@ class AXI4Adapter extends Module {
     rSize   := io.mem.req.bits.size
     rData   := io.mem.req.bits.wdata
     rStrb   := io.mem.req.bits.wstrb
+    rAmo    := io.mem.req.bits.amoOp
     beatCnt := 0.U
     rAcc    := 0.U
     when(io.mem.req.bits.write) { state := sAw }
