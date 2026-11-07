@@ -5,6 +5,16 @@ import chisel3.util._
 import Core.Config.Config
 import Core.Bus._
 
+// 一次访存的解析结果（命中与未命中路径共用）
+class MemResolve extends Bundle {
+  val line     = UInt(Config.Cache.LineBits.W) // 写回后的行
+  val dirty    = Bool()                        // 是否置脏
+  val resp     = UInt(Config.Data.XLEN.W)      // 返回给 CPU 的字（右对齐）
+  val resSet   = Bool()                        // 置 reservation（LR）
+  val resClear = Bool()                        // 清 reservation（SC 或普通写）
+  val resAddr  = UInt(Config.Addr.Width.W)     // LR 时记录地址
+}
+
 // 组相联、写回、写分配的 L1 缓存，树形 PLRU 替换。
 // 未命中：先写回脏行（若需），再从存储器读整行填入后，再返回给 CPU。
 // 不可缓存地址（>= Mmio.Base）直通到 io.mem，绕过缓存存储。
@@ -80,6 +90,41 @@ class L1Cache extends Module {
     (op === AmoOp.MAXU) -> Mux(oldW > d, oldW, d)
   ))
 
+  // 统一访存解析（命中/未命中共用）：普通读/写、AMO/LR/SC 都收敛在这一处
+  def resolve(
+    line: UInt, addr: UInt, widx: UInt, boW: UInt, boL: UInt,
+    write: Bool, size: UInt, d: UInt, strb: UInt, amo: UInt, scOk: Bool
+  ): MemResolve = {
+    val r    = Wire(new MemResolve)
+    val isAmo = amo =/= AmoOp.NOP
+    val isLr  = amo === AmoOp.LR
+    val isSc  = amo === AmoOp.SC
+    val oldW  = readLine(line, widx, boW, MemSize.W)
+    val wrLine  = writeLine(line, boL, d, strb)
+    val amoLine = writeLine(line, boL, atomicNew(oldW, amo, d), strb)
+
+    r.line := MuxCase(line, Seq(
+      (write && !isAmo)        -> wrLine,  // 普通写
+      (isSc && scOk)           -> wrLine,  // SC 成功
+      (isAmo && !isLr && !isSc) -> amoLine // AMO
+    ))
+    r.dirty := (write && !isAmo) || (isSc && scOk) || (isAmo && !isLr && !isSc)
+    r.resp := Mux(isSc, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)),
+      Mux(isAmo, oldW, readLine(line, widx, boW, size)))
+    r.resSet   := isLr
+    r.resClear := isSc || (write && !isAmo) // SC（无论成败）或普通写都清 reservation
+    r.resAddr  := addr
+    r
+  }
+
+  // 树形 PLRU 更新（把 way 标记为 MRU），命中/填充共用
+  def updatePLRU(set: UInt, way: UInt): Unit = {
+    val op = plru(set)
+    val nb1 = Mux(way(1) === 0.U, way(0), op(Config.Cache.PLRUBits - 2))
+    val nb0 = Mux(way(1) === 1.U, way(0), op(Config.Cache.PLRUBits - 3))
+    plru(set) := Cat(way(1), nb1, nb0)
+  }
+
   // 状态机
   val sIdle :: sEvict :: sEvictWait :: sFetch :: sFetchWait :: sResp :: Nil = Enum(6)
   val state = RegInit(sIdle)
@@ -113,11 +158,7 @@ class L1Cache extends Module {
 
   // PLRU 更新（命中路径）
   when(state === sIdle && reqFire && hit) {
-    val op  = plru(index)
-    val nb2 = hitWay(1)
-    val nb1 = Mux(hitWay(1) === 0.U, hitWay(0), op(Config.Cache.PLRUBits - 2))
-    val nb0 = Mux(hitWay(1) === 1.U, hitWay(0), op(Config.Cache.PLRUBits - 3))
-    plru(index) := Cat(nb2, nb1, nb0)
+    updatePLRU(index, hitWay)
   }
 
   // —— FSM 行请求（由 switch / drain 驱动）——
@@ -145,30 +186,13 @@ class L1Cache extends Module {
         when(!hit) {
           state := Mux(needEvict, sEvict, sFetch)
         }.otherwise {
-          val lw = data(hitWay)(index)
-          when(reqWrite && reqAmo === AmoOp.NOP) {
-            data(hitWay)(index)  := writeLine(lw, byteOffLine, reqData, reqWstrb)
-            dirty(hitWay)(index) := true.B
-          }.elsewhen(reqAmo =/= AmoOp.NOP) {
-            val oldW = readLine(lw, wordIdx, byteOffWord, 2.U)
-            val scOk = resValid && (resAddr === reqAddr)
-            when(reqAmo === AmoOp.LR) {
-              resValid := true.B
-              resAddr  := reqAddr
-            }.elsewhen(reqAmo === AmoOp.SC) {
-              when(scOk) {
-                data(hitWay)(index)  := writeLine(lw, byteOffLine, reqData, reqWstrb)
-                dirty(hitWay)(index) := true.B
-                resValid             := false.B
-              }
-            }.otherwise {
-              data(hitWay)(index)  := writeLine(lw, byteOffLine, atomicNew(oldW, reqAmo, reqData), reqWstrb)
-              dirty(hitWay)(index) := true.B
-            }
-            respWord := Mux(reqAmo === AmoOp.SC, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)), oldW)
-          }.otherwise {
-            respWord := readLine(lw, wordIdx, byteOffWord, reqSize)
-          }
+          val m = resolve(data(hitWay)(index), reqAddr, wordIdx, byteOffWord, byteOffLine,
+            reqWrite, reqSize, reqData, reqWstrb, reqAmo, resValid && (resAddr === reqAddr))
+          data(hitWay)(index) := m.line
+          when(m.dirty) { dirty(hitWay)(index) := true.B }
+          when(m.resSet) { resValid := true.B; resAddr := m.resAddr }
+          when(m.resClear) { resValid := false.B }
+          respWord := m.resp
           state := sResp
         }
       }
@@ -195,32 +219,16 @@ class L1Cache extends Module {
       fsmRespReady := true.B
       when(io.mem.resp.valid) {
         val baseLine = io.mem.resp.bits.rdata
-        val isAmo = rAmo =/= AmoOp.NOP
-        val oldW  = readLine(baseLine, rWord, rByteOff(1, 0), 2.U)
-        val scOk  = resValid && (resAddr === rAddr)
-        val filled = Mux(isAmo,
-          Mux(rAmo === AmoOp.LR, baseLine,
-            Mux(rAmo === AmoOp.SC,
-              Mux(scOk, writeLine(baseLine, rByteOff, rData, rWstrb), baseLine),
-              writeLine(baseLine, rByteOff, atomicNew(oldW, rAmo, rData), rWstrb))),
-          Mux(rWrite, writeLine(baseLine, rByteOff, rData, rWstrb), baseLine))
-        data(rWay)(rIndex)  := filled
+        val m = resolve(baseLine, rAddr, rWord, rByteOff(1, 0), rByteOff,
+          rWrite, rSize, rData, rWstrb, rAmo, resValid && (resAddr === rAddr))
+        data(rWay)(rIndex)  := m.line
         tag(rWay)(rIndex)   := rTag
         valid(rWay)(rIndex) := true.B
-        dirty(rWay)(rIndex) := rWrite || (isAmo && rAmo =/= AmoOp.LR && !(rAmo === AmoOp.SC && !scOk))
-        when(isAmo && rAmo === AmoOp.LR) { resValid := true.B; resAddr := rAddr }
-        when(isAmo && rAmo === AmoOp.SC && scOk) { resValid := false.B }
-        val fp  = plru(rIndex)
-        val fb2 = rWay(1)
-        val fb1 = Mux(rWay(1) === 0.U, rWay(0), fp(Config.Cache.PLRUBits - 2))
-        val fb0 = Mux(rWay(1) === 1.U, rWay(0), fp(Config.Cache.PLRUBits - 3))
-        plru(rIndex) := Cat(fb2, fb1, fb0)
-        when(!rWrite && !isAmo) {
-          respWord := readLine(io.mem.resp.bits.rdata, rWord, rByteOff(1, 0), rSize)
-        }
-        when(isAmo) {
-          respWord := Mux(rAmo === AmoOp.SC, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)), oldW)
-        }
+        when(m.dirty) { dirty(rWay)(rIndex) := true.B }
+        when(m.resSet) { resValid := true.B; resAddr := m.resAddr }
+        when(m.resClear) { resValid := false.B }
+        updatePLRU(rIndex, rWay)
+        respWord := m.resp
         state := sResp
       }
     }
