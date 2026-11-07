@@ -8,13 +8,14 @@ import Core.Reg.module._
 import Core.EXU.module._
 import Core.IDU.module._
 import Core.Pipe.module._
+import Core.Bus._
 
 class EXU extends Module {
   val ioCtrl          = IO(new EXUCtrlBundle())                // 控制信号
   val ioEXU           = IO(new EXUStageBundle())               // 下级流水信号
   val ioIDU           = IO(Flipped(new IDUStageBundle))        // 上级流水信号
   val ioEXUForwarding = IO(Flipped(new EXUForwardingBundle())) // EXU - 前递 接口
-  val ioDMem          = IO(Flipped(new DMemBundle))            // DMem 接口
+  val ioMemPort       = IO(new MemPort)                       // 数据存储器（主侧）
   val ioValid         = IO(Input(Bool()))                      // 上级数据有效信号
 
   // 操作数1
@@ -105,6 +106,7 @@ class EXU extends Module {
 
   // Pipe控制
   // 陷阱类指令：冲刷到CSR给出的地址，同时需提交到WBU完成状态更新
+  val isFenceI = ioIDU.excType === exc.FENCE_I
   val isTrap = (ioIDU.excType === exc.ECALL) || (ioIDU.excType === exc.MRET) || (ioIDU.excType === exc.SRET)
   ioCtrl.stallReq   := ((ioIDU.mulCtrl =/= mul.NOP) && !MULReady) ||
     ((ioIDU.divCtrl =/= div.NOP) && !DIVReady) ||
@@ -113,10 +115,11 @@ class EXU extends Module {
     0.U(Config.Addr.Width.W),
     Seq(
       isBranchSuccess -> Branch.ioBranch.branchPC,
-      isTrap          -> ioIDU.preFlushPC
+      isTrap          -> ioIDU.preFlushPC,
+      isFenceI        -> ioIDU.preFlushPC
     )
   )
-  ioCtrl.flushReq   := isBranchSuccess || isTrap
+  ioCtrl.flushReq   := isBranchSuccess || isTrap || isFenceI
   ioCtrl.pipe.valid := MuxCase(
     false.B,
     Seq(
@@ -127,6 +130,7 @@ class EXU extends Module {
       (ioIDU.memCtrl =/= mem.NOP)       -> LSUReady,
       (ioIDU.mulCtrl =/= mul.NOP)       -> MULReady,
       (ioIDU.excType === exc.EBREAK)    -> true.B, // for npc
+      isFenceI                          -> true.B,
       isTrap                            -> true.B
     )
   )
@@ -150,7 +154,7 @@ class EXU extends Module {
   ioEXUForwarding.csr.data := CSRResult        // csr数据
 
   // DMem IO
-  ioDMem <> LSU.ioDMem
+  LSU.ioMemPort <> ioMemPort
 
   // EXU IO
   ioEXU.pc         := ioIDU.pc         // PC值

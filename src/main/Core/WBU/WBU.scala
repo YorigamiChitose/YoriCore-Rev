@@ -18,10 +18,13 @@ class WBU extends Module {
   val ioCSRWBU        = IO(Flipped(new CSRWBUBundle))        // EXU - CSR寄存器 接口
   val ioWBUForwarding = IO(Flipped(new WBUForwardingBundle)) // EXU - 前递 接口
   val ioValid         = IO(Input(Bool()))                    // 上级数据有效信号
+  val ioFenceI        = IO(Output(Bool()))                   // fence.i 信号（WBU 确认后）
 
+  val isFenceI = ioEXU.excType === exc.FENCE_I
   ioCtrl.flushReq := ioValid &&
-    ((ioEXU.excType === exc.ECALL) || (ioEXU.excType === exc.MRET) || (ioEXU.excType === exc.SRET)) // 冲刷请求
-  ioCtrl.flushPC := ioCSRWBU.flushPC // 冲刷地址
+    ((ioEXU.excType === exc.ECALL) || (ioEXU.excType === exc.MRET) || (ioEXU.excType === exc.SRET) || isFenceI) // 冲刷请求
+  ioCtrl.flushPC := Mux(ioValid && isFenceI, ioEXU.pc + (Config.Inst.Width / 8).U, ioCSRWBU.flushPC) // 冲刷地址
+  ioFenceI := ioValid && isFenceI
 
   ioRegWBU.rd.en   := ioEXU.rdEn && ioValid // rd写入使能
   ioRegWBU.rd.addr := ioEXU.rdAddr          // rd写入地址

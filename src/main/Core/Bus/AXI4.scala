@@ -6,9 +6,7 @@ import Core.Config.Config
 
 object AXI4 {
   val AddrWidth = Config.Bus.AxiAddrWidth
-  val DataWidth = Config.Bus.AxiDataWidth
   val IdWidth   = Config.Bus.AxiIdWidth
-  val StrbWidth = DataWidth / 8
 
   object Burst {
     val FIXED = 0.U(2.W)
@@ -35,9 +33,9 @@ class AXI4AW extends Bundle {
   val prot  = UInt(3.W)
 }
 
-class AXI4W extends Bundle {
-  val data = UInt(AXI4.DataWidth.W)
-  val strb = UInt(AXI4.StrbWidth.W)
+class AXI4W(val dataWidth: Int) extends Bundle {
+  val data = UInt(dataWidth.W)
+  val strb = UInt((dataWidth / 8).W)
   val last = Bool()
 }
 
@@ -57,18 +55,18 @@ class AXI4AR extends Bundle {
   val prot  = UInt(3.W)
 }
 
-class AXI4R extends Bundle {
+class AXI4R(val dataWidth: Int) extends Bundle {
   val id   = UInt(AXI4.IdWidth.W)
-  val data = UInt(AXI4.DataWidth.W)
+  val data = UInt(dataWidth.W)
   val resp = UInt(2.W)
   val last = Bool()
 }
 
-// AXI4 主端口视角
-class AXI4Master extends Bundle {
+// AXI4 主端口视角（按数据位宽参数化）
+class AXI4Master(val dataWidth: Int) extends Bundle {
   val aw = Decoupled(new AXI4AW)
-  val w  = Decoupled(new AXI4W)
+  val w  = Decoupled(new AXI4W(dataWidth))
   val b  = Flipped(Decoupled(new AXI4B))
   val ar = Decoupled(new AXI4AR)
-  val r  = Flipped(Decoupled(new AXI4R))
+  val r  = Flipped(Decoupled(new AXI4R(dataWidth)))
 }

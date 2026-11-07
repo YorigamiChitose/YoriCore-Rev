@@ -17,6 +17,7 @@ import Core.WBU._
 import Core.WBU.module._
 import Core.Reg._
 import Core.Reg.module._
+import Core.Bus._
 import Core.Config.Config
 
 class Core extends Module {
@@ -74,10 +75,14 @@ class Core extends Module {
   forwording.ioEXU <> EXU.ioEXUForwarding // EXU - 前递 数据通路
   forwording.ioWBU <> WBU.ioWBUForwarding // WBU - 前递 数据通路
 
-  // test code
-  val ioIMem = IO(Flipped(new IMemBundle))
-  IFU.ioIMem <> ioIMem
+  // 对外统一访存主端口
+  val ioIMemPort = IO(new MemPort)
+  IFU.ioMemPort <> ioIMemPort
 
-  val ioDMem = IO(Flipped(new DMemBundle))
-  EXU.ioDMem <> ioDMem
+  val ioDMemPort = IO(new MemPort)
+  EXU.ioMemPort <> ioDMemPort
+
+  // fence.i 信号（WBU 确认后：冲刷流水 + 通知缓存回写/失效）
+  val ioFenceI = IO(Output(Bool()))
+  ioFenceI := WBU.ioFenceI
 }

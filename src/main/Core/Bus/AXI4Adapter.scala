@@ -2,156 +2,118 @@ package Core.Bus
 
 import chisel3._
 import chisel3.util._
+
 import Core.Config.Config
 
-// AXI4 Adapter —— 核内自定义 req/resp（MemPort）到对外 AXI4 主端口的唯一转换点。
-// Phase 0：单拍（无 burst）、单 outstanding、32-bit 数据宽度。
-// 后续 Phase 2 才在本模块内加入 burst / cacheable / 64-bit。
+// 统一 AXI4 适配器：唯一「理解 AXI」的模块。
+// 接收统一 MemPort（256 位），按 size 执行：
+//   - size=行   ：行对齐地址，len=(LineBits/AxiDataWidth)-1 的 64 位突发（读填行 / 写回行）
+//   - size=字/半字/字节：len=0 单拍窄传输（不可缓存/MMIO 直通）
 class AXI4Adapter extends Module {
   val io = IO(new Bundle {
-    val mem = Flipped(new MemPort) // 自定义接口（从侧）
-    val axi = new AXI4Master       // AXI4 主端口
+    val mem = Flipped(new MemPort)
+    val axi = new AXI4Master(Config.Bus.AxiDataWidth)
   })
 
-  val AW = Config.Bus.AxiAddrWidth
-  val DW = Config.Bus.AxiDataWidth
-  val SW = DW / 8
+  val axiDataWidth = Config.Bus.AxiDataWidth // 64
+  val lineBits     = Config.Cache.LineBits   // 256
+  val lineBeats    = lineBits / axiDataWidth // 4
+  val beatBytes    = axiDataWidth / 8        // 8
 
-  val sIdle :: sReadAR :: sReadR :: sWrite :: sWriteB :: sResp :: Nil = Enum(6)
-  val state                                                           = RegInit(sIdle)
+  val sIdle :: sAw :: sW :: sB :: sAr :: sR :: sResp :: Nil = Enum(7)
+  val state = RegInit(sIdle)
 
-  // 单 outstanding，锁存本次请求
-  val reqAddr = RegInit(0.U(AW.W))
-  val reqSize = RegInit(0.U(2.W))
-  val reqData = RegInit(0.U(DW.W))
+  val rAddr  = RegInit(0.U(Config.Addr.Width.W))
+  val rWrite = RegInit(false.B)
+  val rSize  = RegInit(0.U(2.W))
+  val rData  = RegInit(0.U(lineBits.W))
+  val rStrb  = RegInit(0.U((lineBits / 8).W))
+  val rAcc   = RegInit(0.U(lineBits.W))
 
-  io.mem.req.ready := state === sIdle
-  val reqFire = io.mem.req.valid && io.mem.req.ready
-  when(reqFire) {
-    reqAddr := io.mem.req.bits.addr
-    reqSize := io.mem.req.bits.size
-    reqData := io.mem.req.bits.wdata
-  }
+  val isLine = rSize === MemSize.Line
 
-  val isByte  = reqSize === 0.U
-  val isHalf  = reqSize === 1.U
-  val axiSize = Mux(isByte, 0.U(3.W), Mux(isHalf, 1.U(3.W), 2.U(3.W)))
+  // 行对齐地址（低 LineWidth 位置 0）
+  val lineAddr = Cat(rAddr(Config.Addr.Width - 1, Config.Cache.LineWidth), 0.U(Config.Cache.LineWidth.W))
 
-  val byteOff = reqAddr(1, 0)
-  val halfOff = reqAddr(1)
+  val beats   = Mux(isLine, lineBeats.U, 1.U)
+  val beatCnt = RegInit(0.U(log2Ceil(lineBeats).W))
 
-  // 写：把右对齐 data/strb 摆到对应字节 lane（小端）
-  val wdataByte = MuxLookup(byteOff, 0.U(DW.W))(
-    Seq(
-      0.U -> Cat(Fill(24, 0.U), reqData(7, 0)),
-      1.U -> Cat(Fill(16, 0.U), reqData(7, 0), 0.U(8.W)),
-      2.U -> Cat(Fill(8, 0.U), reqData(7, 0), 0.U(16.W)),
-      3.U -> Cat(reqData(7, 0), 0.U(24.W))
-    )
-  )
-  val wdataHalf = Mux(halfOff, Cat(reqData(15, 0), 0.U(16.W)), Cat(Fill(16, 0.U), reqData(15, 0)))
-  val wdataOut  = Mux(isByte, wdataByte, Mux(isHalf, wdataHalf, reqData))
+  // 窄传输在 64 位总线内的字节偏移（0..7）
+  val byteOff = rAddr(2, 0)
+  val wData64 = Cat(rData(31, 0), 0.U(32.W)) << (byteOff * 8.U)
+  val wStrb64 = Cat(rStrb(3, 0), 0.U(4.W)) << byteOff
 
-  val strbByte = MuxLookup(byteOff, 0.U(SW.W))(
-    Seq(
-      0.U -> "b0001".U,
-      1.U -> "b0010".U,
-      2.U -> "b0100".U,
-      3.U -> "b1000".U
-    )
-  )
-  val strbHalf = Mux(halfOff, "b1100".U(SW.W), "b0011".U(SW.W))
-  val wstrbOut = Mux(isByte, strbByte, Mux(isHalf, strbHalf, Fill(SW, 1.U)))
+  // 行写：按 beat 取 64 位片
+  val wBeatData = (rData >> (beatCnt * axiDataWidth.U))(axiDataWidth - 1, 0)
 
-  // 读：从字中提取字节/半字，右对齐返回（符号扩展由 LSU 层负责）
-  val rdataByte = MuxLookup(byteOff, 0.U(DW.W))(
-    Seq(
-      0.U -> Cat(Fill(24, 0.U), io.axi.r.bits.data(7, 0)),
-      1.U -> Cat(Fill(24, 0.U), io.axi.r.bits.data(15, 8)),
-      2.U -> Cat(Fill(24, 0.U), io.axi.r.bits.data(23, 16)),
-      3.U -> Cat(Fill(24, 0.U), io.axi.r.bits.data(31, 24))
-    )
-  )
-  val rdataHalf = Mux(halfOff, Cat(Fill(16, 0.U), io.axi.r.bits.data(31, 16)), Cat(Fill(16, 0.U), io.axi.r.bits.data(15, 0)))
-  val rdataOut  = Mux(isByte, rdataByte, Mux(isHalf, rdataHalf, io.axi.r.bits.data))
+  val len = Mux(isLine, (lineBeats - 1).U, 0.U)
 
-  // 响应锁存
-  val respData = RegInit(0.U(DW.W))
-  val respErr  = RegInit(false.B)
-
-  // ---- AXI 默认输出 ----
-  io.axi.ar.valid      := false.B
-  io.axi.ar.bits.id    := 0.U
-  io.axi.ar.bits.addr  := 0.U(AW.W)
-  io.axi.ar.bits.len   := 0.U
-  io.axi.ar.bits.size  := 0.U
-  io.axi.ar.bits.burst := AXI4.Burst.INCR
-  io.axi.ar.bits.cache := 0.U
-  io.axi.ar.bits.prot  := 0.U
-
-  io.axi.aw.valid      := false.B
+  // —— AXI 默认输出 ——
   io.axi.aw.bits.id    := 0.U
-  io.axi.aw.bits.addr  := 0.U(AW.W)
-  io.axi.aw.bits.len   := 0.U
-  io.axi.aw.bits.size  := 0.U
+  io.axi.aw.bits.len   := len
+  io.axi.aw.bits.size  := 3.U(3.W) // 8 字节/拍
   io.axi.aw.bits.burst := AXI4.Burst.INCR
   io.axi.aw.bits.cache := 0.U
   io.axi.aw.bits.prot  := 0.U
 
-  io.axi.w.valid     := false.B
-  io.axi.w.bits.data := 0.U(DW.W)
-  io.axi.w.bits.strb := 0.U(SW.W)
-  io.axi.w.bits.last := false.B
+  io.axi.ar.bits.id    := 0.U
+  io.axi.ar.bits.len   := len
+  io.axi.ar.bits.size  := 3.U(3.W)
+  io.axi.ar.bits.burst := AXI4.Burst.INCR
+  io.axi.ar.bits.cache := 0.U
+  io.axi.ar.bits.prot  := 0.U
 
-  io.axi.b.ready := false.B
-  io.axi.r.ready := false.B
+  io.mem.req.ready      := state === sIdle
+  io.mem.resp.valid     := state === sResp
+  io.mem.resp.bits.rdata := rAcc
+  io.mem.resp.bits.err  := false.B
 
-  // ---- 响应输出（仅在 sResp 拉高）----
-  io.mem.resp.valid      := state === sResp
-  io.mem.resp.bits.rdata := respData
-  io.mem.resp.bits.err   := respErr
-
-  // ---- 状态机 ----
-  switch(state) {
-    is(sIdle) {
-      when(reqFire) {
-        state := Mux(io.mem.req.bits.write, sWrite, sReadAR)
-      }
-    }
-    is(sReadAR) {
-      io.axi.ar.valid     := true.B
-      io.axi.ar.bits.addr := reqAddr
-      io.axi.ar.bits.size := axiSize
-      when(io.axi.ar.ready) { state := sReadR }
-    }
-    is(sReadR) {
-      io.axi.r.ready := true.B
-      when(io.axi.r.valid) {
-        respData := rdataOut
-        respErr  := io.axi.r.bits.resp =/= AXI4.Resp.OKAY
-        state    := sResp
-      }
-    }
-    is(sWrite) {
-      io.axi.aw.valid     := true.B
-      io.axi.aw.bits.addr := reqAddr
-      io.axi.aw.bits.size := axiSize
-      io.axi.w.valid      := true.B
-      io.axi.w.bits.data  := wdataOut
-      io.axi.w.bits.strb  := wstrbOut
-      io.axi.w.bits.last  := true.B
-      when(io.axi.aw.ready && io.axi.w.ready) { state := sWriteB }
-    }
-    is(sWriteB) {
-      io.axi.b.ready := true.B
-      when(io.axi.b.valid) {
-        respData := 0.U(DW.W)
-        respErr  := io.axi.b.bits.resp =/= AXI4.Resp.OKAY
-        state    := sResp
-      }
-    }
-    is(sResp) {
-      when(io.mem.resp.ready) { state := sIdle }
-    }
+  // 请求锁存
+  when(state === sIdle && io.mem.req.valid) {
+    rAddr   := io.mem.req.bits.addr
+    rWrite  := io.mem.req.bits.write
+    rSize   := io.mem.req.bits.size
+    rData   := io.mem.req.bits.wdata
+    rStrb   := io.mem.req.bits.wstrb
+    beatCnt := 0.U
+    rAcc    := 0.U
+    when(io.mem.req.bits.write) { state := sAw }
+    .otherwise { state := sAr }
   }
+
+  // —— 写通道 ——
+  io.axi.aw.valid := state === sAw
+  io.axi.aw.bits.addr := Mux(isLine, lineAddr, rAddr)
+  when(state === sAw && io.axi.aw.ready) { state := sW }
+
+  io.axi.w.valid      := state === sW
+  io.axi.w.bits.data  := Mux(isLine, wBeatData, wData64)
+  io.axi.w.bits.strb  := Mux(isLine, Fill(beatBytes, 1.U), wStrb64)
+  io.axi.w.bits.last  := beatCnt === (beats - 1.U)
+  when(state === sW && io.axi.w.ready) {
+    when(beatCnt === (beats - 1.U)) { state := sB }
+    .otherwise { beatCnt := beatCnt + 1.U }
+  }
+
+  io.axi.b.ready := state === sB
+  when(state === sB && io.axi.b.valid) { state := sResp }
+
+  // —— 读通道 ——
+  io.axi.ar.valid := state === sAr
+  io.axi.ar.bits.addr := Mux(isLine, lineAddr, rAddr)
+  when(state === sAr && io.axi.ar.ready) { state := sR }
+
+  io.axi.r.ready := state === sR
+  when(state === sR && io.axi.r.valid) {
+    when(isLine) {
+      rAcc := rAcc | (io.axi.r.bits.data << (beatCnt * axiDataWidth.U))
+    }.otherwise {
+      val wd = (io.axi.r.bits.data >> (byteOff * 8.U))(31, 0)
+      rAcc := Cat(0.U((lineBits - 32).W), wd)
+    }
+    when(beatCnt === (beats - 1.U)) { state := sResp }
+    .otherwise { beatCnt := beatCnt + 1.U }
+  }
+
+  when(state === sResp && io.mem.resp.ready) { state := sIdle }
 }

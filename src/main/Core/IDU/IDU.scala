@@ -130,6 +130,6 @@ class IDU extends Module {
   ioIDU.memCtrl    := memCtrl             // 访存控制信号
   ioIDU.csrCtrl    := csrCtrl             // csr控制信号
   ioIDU.excType    := excType             // exc类型
-  ioIDU.preFlushPC := ioCSRIDU.preFlushPC // 预冲刷地址
+  ioIDU.preFlushPC := Mux(excType === exc.FENCE_I, ioIFU.pc + ioIFU.pcInc, ioCSRIDU.preFlushPC) // 预冲刷地址（fence.i 指向下一条）
   ioIDU.pcInc      := ioIFU.pcInc         // 指令长度（2/4）
 }

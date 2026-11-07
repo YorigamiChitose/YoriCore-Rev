@@ -36,7 +36,24 @@ object Config {
   object Bus {
     val MemDataWidth = Data.XLEN  // 核内自定义接口数据宽度
     val AxiAddrWidth = Addr.Width // 物理地址宽度
-    val AxiDataWidth = 32         // Phase 0 单拍 32b；Phase 2 升 64b + burst
+    val AxiDataWidth = 64         // 统一 AXI 数据位宽（行突发 4 拍 / 字窄传输单拍）
     val AxiIdWidth   = 1
+  }
+
+  object Mmio {
+    val Base = 0xF000_0000L // MMIO 起始地址（>= Base 为不可缓存，直通）
+  }
+
+  object Cache {
+    val LineBytes  = 32                  // 缓存行大小（字节）
+    val LineBits   = LineBytes * 8       // 缓存行位宽 256
+    val LineWidth  = log2Ceil(LineBytes) // 行内字节偏移位 5
+
+    val NumWays    = 4                   // 组相联路数
+    val NumSets    = 64                  // 组数
+    val PLRUBits   = NumWays - 1         // 树形 PLRU 每组位数
+    val IndexWidth = log2Ceil(NumSets)   // 组索引位宽 6
+    val TagWidth   = Addr.Width - IndexWidth - LineWidth // tag 位宽
+    val WordBits   = log2Ceil(LineBits / Data.XLEN)      // 行内字数位宽
   }
 }

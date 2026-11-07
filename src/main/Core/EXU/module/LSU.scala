@@ -5,6 +5,7 @@ import chisel3.util._
 
 import Core.Config.Config
 import Core.IDU.module._
+import Core.Bus._
 
 object LSUCtrl {
   object len {
@@ -14,7 +15,6 @@ object LSUCtrl {
     val H     = 2.U(WIDTH.W)
     val W     = 3.U(WIDTH.W)
   }
-  //                     isSigned len
   val defaultList = List(false.B, len.NOP)
   val table = Array(
     BitPat(mem.NOP)     -> List(false.B, len.NOP),
@@ -41,43 +41,39 @@ object LSUCtrl {
 }
 
 class LSUBundle extends Bundle {
-  val memCtrl = Input(mem())                     // LSU控制信号
-  val addr    = Input(UInt(Config.Addr.Width.W)) // 地址计算结果
-  val dataIn  = Input(UInt(Config.Data.XLEN.W))  // 保存数据（AMO = rs2 操作数）
+  val memCtrl = Input(mem())                     // LSU 控制信号
+  val addr    = Input(UInt(Config.Addr.Width.W)) // 地址
+  val dataIn  = Input(UInt(Config.Data.XLEN.W))  // 存数/AMO 操作数
   val flush   = Input(Bool())                    // 冲刷
-  val dataOut = Output(UInt(Config.Data.XLEN.W)) // LSU结果（AMO/LR=旧值，SC=成败标志）
-  val ready   = Output(Bool())                   // LSU准备完成
+  val dataOut = Output(UInt(Config.Data.XLEN.W)) // 结果
+  val ready   = Output(Bool())                   // 完成
 }
 
 class LSU extends Module {
-  val ioLSU  = IO(new LSUBundle)           // LSU IO
-  val ioDMem = IO(Flipped(new DMemBundle)) // DMem IO
+  val ioLSU     = IO(new LSUBundle)
+  val ioMemPort = IO(new MemPort) // 数据存储器（主侧，统一访存接口）
 
   val XLEN = Config.Data.XLEN
   val AW   = Config.Addr.Width
 
-  // 普通 load/store 的长度与符号
   val isSigned :: dataLen :: Nil = ListLookup(ioLSU.memCtrl.asUInt, LSUCtrl.defaultList, LSUCtrl.table)
 
   val sIdle :: sRead :: sWrite :: sDone :: Nil = Enum(4)
-  val state                                    = RegInit(sIdle)
+  val state = RegInit(sIdle)
 
-  // 锁存输入供多周期使用
   val ctrlReg = RegInit(mem.NOP)
   val addrReg = RegInit(0.U(AW.W))
-  val dataReg = RegInit(0.U(XLEN.W)) // rs2 / 存数数据
-  val oldReg  = RegInit(0.U(XLEN.W)) // 读回的旧值
-
-  // reservation set
-  val resValid = RegInit(false.B)
-  val resAddr  = RegInit(0.U(AW.W))
-  val scOk     = RegInit(false.B)
+  val dataReg = RegInit(0.U(XLEN.W))
+  val oldReg  = RegInit(0.U(XLEN.W))
+  val lenReg  = RegInit(0.U(LSUCtrl.len.WIDTH.W))
+  val signReg = RegInit(false.B)
 
   val start = (state === sIdle) && (ioLSU.memCtrl =/= mem.NOP)
 
-  // 当前操作类型：idle 期看 memCtrl，运行期看 ctrlReg
   val curCtrl = Mux(state === sIdle, ioLSU.memCtrl, ctrlReg)
   val curAddr = Mux(state === sIdle, ioLSU.addr, addrReg)
+  val curLen  = Mux(state === sIdle, dataLen, lenReg)
+  val curSign = Mux(state === sIdle, isSigned.asBool, signReg)
 
   val isLoad  = (curCtrl === mem.LB) || (curCtrl === mem.LH) || (curCtrl === mem.LBU) || (curCtrl === mem.LHU) || (curCtrl === mem.LW)
   val isStore = (curCtrl === mem.SB) || (curCtrl === mem.SH) || (curCtrl === mem.SW)
@@ -87,75 +83,69 @@ class LSU extends Module {
   val isLR    = curCtrl === mem.LR
   val isSC    = curCtrl === mem.SC
 
-  val scSuccess = resValid && (curAddr === resAddr)
+  // 原子操作编码（下沉到缓存）
+  val amoOp = Mux(curCtrl === mem.LR, AmoOp.LR, Mux(curCtrl === mem.SC, AmoOp.SC, MuxCase(AmoOp.NOP, Seq(
+    (curCtrl === mem.AMOSWAP) -> AmoOp.SWAP,
+    (curCtrl === mem.AMOADD)  -> AmoOp.ADD,
+    (curCtrl === mem.AMOXOR)  -> AmoOp.XOR,
+    (curCtrl === mem.AMOAND)  -> AmoOp.AND,
+    (curCtrl === mem.AMOOR)   -> AmoOp.OR,
+    (curCtrl === mem.AMOMIN)  -> AmoOp.MIN,
+    (curCtrl === mem.AMOMAX)  -> AmoOp.MAX,
+    (curCtrl === mem.AMOMINU) -> AmoOp.MINU,
+    (curCtrl === mem.AMOMAXU) -> AmoOp.MAXU
+  ))))
 
-  // AMO 新值计算
-  val amoNew    = MuxCase(
-    0.U(XLEN.W),
-    Seq(
-      (ctrlReg === mem.AMOSWAP) -> dataReg,
-      (ctrlReg === mem.AMOADD)  -> (oldReg + dataReg),
-      (ctrlReg === mem.AMOXOR)  -> (oldReg ^ dataReg),
-      (ctrlReg === mem.AMOAND)  -> (oldReg & dataReg),
-      (ctrlReg === mem.AMOOR)   -> (oldReg | dataReg),
-      (ctrlReg === mem.AMOMIN)  -> Mux(oldReg.asSInt < dataReg.asSInt, oldReg, dataReg),
-      (ctrlReg === mem.AMOMAX)  -> Mux(oldReg.asSInt > dataReg.asSInt, oldReg, dataReg),
-      (ctrlReg === mem.AMOMINU) -> Mux(oldReg < dataReg, oldReg, dataReg),
-      (ctrlReg === mem.AMOMAXU) -> Mux(oldReg > dataReg, oldReg, dataReg)
-    )
+  // MemPort 请求映射
+  val memSize  = Mux(curLen === LSUCtrl.len.B, 0.U(2.W), Mux(curLen === LSUCtrl.len.H, 1.U(2.W), 2.U(2.W)))
+  val memWstrb = Mux(curLen === LSUCtrl.len.B, "b0001".U(4.W), Mux(curLen === LSUCtrl.len.H, "b0011".U(4.W), "b1111".U(4.W)))
+
+  // 单 outstanding 内存事务
+  val memBusy  = RegInit(false.B)
+  val needMem  = (state === sRead) || (state === sWrite)
+  val issueMem = needMem && !memBusy
+
+  ioMemPort.req.valid      := issueMem
+  ioMemPort.req.bits.addr  := addrReg
+  ioMemPort.req.bits.write := state === sWrite
+  ioMemPort.req.bits.size  := memSize
+  ioMemPort.req.bits.wdata := dataReg
+  ioMemPort.req.bits.wstrb := memWstrb
+  ioMemPort.req.bits.amoOp := amoOp
+  when(ioMemPort.req.fire) { memBusy := true.B }
+  ioMemPort.resp.ready := memBusy
+
+  // load 符号/零扩展
+  val byteSE = Cat(Fill(24, oldReg(7)), oldReg(7, 0))
+  val halfSE = Cat(Fill(16, oldReg(15)), oldReg(15, 0))
+  val byteZE = Cat(0.U(24.W), oldReg(7, 0))
+  val halfZE = Cat(0.U(16.W), oldReg(15, 0))
+  val isB    = curLen === LSUCtrl.len.B
+  val isH    = curLen === LSUCtrl.len.H
+  val loadData = Mux(curSign,
+    Mux(isB, byteSE, Mux(isH, halfSE, oldReg)),
+    Mux(isB, byteZE, Mux(isH, halfZE, oldReg))
   )
-  val writeData = Mux(isAMO, amoNew, dataReg)
+  val isLoadOp = isLoad
 
-  // DMem IO
-  ioDMem.readEn   := state === sRead
-  ioDMem.writeEn  := state === sWrite
-  ioDMem.isSigned := isSigned
-  ioDMem.dataLen  := dataLen
-  ioDMem.addr     := addrReg
-  ioDMem.dataIn   := writeData
-
-  // LSU IO
-  ioLSU.dataOut := Mux(ctrlReg === mem.SC, Mux(scOk, 0.U(XLEN.W), 1.U(XLEN.W)), oldReg)
+  ioLSU.dataOut := Mux(isLoadOp, loadData, oldReg)
   ioLSU.ready   := (state === sIdle && ioLSU.memCtrl === mem.NOP) || (state === sDone)
 
   when(ioLSU.flush) {
-    state := sIdle
+    state   := sIdle
+    memBusy := false.B
   }.elsewhen(start) {
     ctrlReg := ioLSU.memCtrl
     addrReg := ioLSU.addr
     dataReg := ioLSU.dataIn
-    when(isSC) {
-      scOk := scSuccess
-    }
-    when(isStore || isAMO) {
-      when(ioLSU.addr === resAddr) {
-        resValid := false.B
-      }
-    }
-    when(isLoad || isAMO || isLR) {
-      state := sRead
-    }.elsewhen(isStore || (isSC && scSuccess)) {
-      state := sWrite
-    }.elsewhen(isSC) {
-      state := sDone
-    }
-  }.elsewhen(state === sRead) {
-    when(ioDMem.ready) {
-      oldReg := ioDMem.dataOut
-      when(isLR) {
-        resValid := true.B
-        resAddr  := addrReg
-      }
-      when(isAMO) {
-        state := sWrite
-      }.otherwise {
-        state := sDone
-      }
-    }
-  }.elsewhen(state === sWrite) {
-    when(ioDMem.ready) {
-      state := sDone
-    }
+    lenReg  := dataLen
+    signReg := isSigned.asBool
+    when(isLoad || isLR) { state := sRead }
+    .elsewhen(isStore || isSC || isAMO) { state := sWrite }
+  }.elsewhen(ioMemPort.resp.fire) {
+    memBusy := false.B
+    oldReg  := ioMemPort.resp.bits.rdata(Config.Data.XLEN - 1, 0)
+    state   := sDone
   }.elsewhen(state === sDone) {
     state := sIdle
   }
