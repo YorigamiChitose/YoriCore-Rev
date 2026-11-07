@@ -49,9 +49,7 @@ object branch extends ChiselEnum {
 }
 
 object mem extends ChiselEnum {
-  val NOP, LB, LH, LBU, LHU, LW, SB, SH, SW,
-      AMOSWAP, AMOADD, AMOXOR, AMOAND, AMOOR,
-      AMOMIN, AMOMAX, AMOMINU, AMOMAXU, LR, SC = Value
+  val NOP, LB, LH, LBU, LHU, LW, SB, SH, SW, AMOSWAP, AMOADD, AMOXOR, AMOAND, AMOOR, AMOMIN, AMOMAX, AMOMINU, AMOMAXU, LR, SC = Value
 }
 
 object csr extends ChiselEnum {
@@ -75,13 +73,23 @@ case class DecodeSig(
   divCtrl:    div.Type,
   memCtrl:    mem.Type,
   csrCtrl:    csr.Type,
-  excType:    exc.Type
-)
+  excType:    exc.Type)
 
 object ALL {
   val defaultSig = DecodeSig(
-    rs1.NOP, rs2.NOP, rd.NOP,
-    op1.NOP, op2.NOP, alu.NOP, imm.N, branch.NOP, mul.NOP, div.NOP, mem.NOP, csr.NOP, exc.ILLEGAL_INST
+    rs1.NOP,
+    rs2.NOP,
+    rd.NOP,
+    op1.NOP,
+    op2.NOP,
+    alu.NOP,
+    imm.N,
+    branch.NOP,
+    mul.NOP,
+    div.NOP,
+    mem.NOP,
+    csr.NOP,
+    exc.ILLEGAL_INST
   )
-  val instList = RV32I.table ++ RV32M.table ++ RVMSU.table ++ RV32A.table
+  val instList   = RV32I.table ++ RV32M.table ++ RVMSU.table ++ RV32A.table
 }

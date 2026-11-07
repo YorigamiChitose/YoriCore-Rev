@@ -41,7 +41,7 @@ object LSUCtrl {
 }
 
 class LSUBundle extends Bundle {
-  val memCtrl = Input(mem())                          // LSU控制信号
+  val memCtrl = Input(mem())                     // LSU控制信号
   val addr    = Input(UInt(Config.Addr.Width.W)) // 地址计算结果
   val dataIn  = Input(UInt(Config.Data.XLEN.W))  // 保存数据（AMO = rs2 操作数）
   val flush   = Input(Bool())                    // 冲刷

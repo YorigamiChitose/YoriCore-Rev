@@ -7,7 +7,7 @@ import Core.Config.Config
 import Core.IDU.module._
 
 class ALUBundle extends Bundle {
-  val aluCtrl = Input(alu())         // ALU控制信号
+  val aluCtrl = Input(alu())                     // ALU控制信号
   val op1     = Input(UInt(Config.Data.XLEN.W))  // 操作数1
   val op2     = Input(UInt(Config.Data.XLEN.W))  // 操作数2
   val result  = Output(UInt(Config.Data.XLEN.W)) // 结果
