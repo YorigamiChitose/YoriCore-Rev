@@ -20,26 +20,30 @@ class IDU extends Module {
 
   val inst = Mux(ioValid, ioIFU.inst, 0.U) // 指令
 
+  // C 扩展：16 位压缩指令（低 2 位 != 11）展开为 32 位规范指令后统一译码
+  val isComp = inst(1, 0) =/= "b11".U
+  val inst32 = Mux(isComp, CExpander.expand(inst(15, 0)), inst)
+
   // 指令译码解析（Mux1H 逐字段查表，支持 ChiselEnum 强类型）
-  val matches = ALL.instList.toSeq.map { case (pat, _) => inst === pat }
+  val matches = ALL.instList.toSeq.map { case (pat, _) => inst32 === pat }
   val sel     = matches :+ !matches.reduce(_ || _)
 
   val (rs1En, rs2En, rdEn, op1Type, op2Type, aluCtrl, immType, branchCtrl, mulCtrl, divCtrl, memCtrl, csrCtrl, excType) =
     suppressEnumCastWarning {
       (
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.rs1En)      :+ ALL.defaultSig.rs1En),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.rs2En)      :+ ALL.defaultSig.rs2En),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.rdEn)       :+ ALL.defaultSig.rdEn),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.op1Type)    :+ ALL.defaultSig.op1Type),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.op2Type)    :+ ALL.defaultSig.op2Type),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.aluCtrl)    :+ ALL.defaultSig.aluCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.immType)    :+ ALL.defaultSig.immType),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.rs1En) :+ ALL.defaultSig.rs1En),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.rs2En) :+ ALL.defaultSig.rs2En),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.rdEn) :+ ALL.defaultSig.rdEn),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.op1Type) :+ ALL.defaultSig.op1Type),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.op2Type) :+ ALL.defaultSig.op2Type),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.aluCtrl) :+ ALL.defaultSig.aluCtrl),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.immType) :+ ALL.defaultSig.immType),
         Mux1H(sel, ALL.instList.toSeq.map(_._2.branchCtrl) :+ ALL.defaultSig.branchCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.mulCtrl)    :+ ALL.defaultSig.mulCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.divCtrl)    :+ ALL.defaultSig.divCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.memCtrl)    :+ ALL.defaultSig.memCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.csrCtrl)    :+ ALL.defaultSig.csrCtrl),
-        Mux1H(sel, ALL.instList.toSeq.map(_._2.excType)    :+ ALL.defaultSig.excType)
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.mulCtrl) :+ ALL.defaultSig.mulCtrl),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.divCtrl) :+ ALL.defaultSig.divCtrl),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.memCtrl) :+ ALL.defaultSig.memCtrl),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.csrCtrl) :+ ALL.defaultSig.csrCtrl),
+        Mux1H(sel, ALL.instList.toSeq.map(_._2.excType) :+ ALL.defaultSig.excType)
       )
     }
 
@@ -47,26 +51,26 @@ class IDU extends Module {
   val rs2Data = Mux(ioIDUForwarding.rs2.needPass, ioIDUForwarding.rs2.data, ioRegIDU.rs2.data) // 通用寄存器数据
 
   val csrData    = Mux(ioIDUForwarding.csr.needPass, ioIDUForwarding.csr.data, ioCSRIDU.csr.data) // csr寄存器数据
-  val csrAddr    = inst(31, 20)                                                                   // csr寄存器地址
+  val csrAddr    = inst32(31, 20)                                                                 // csr寄存器地址
   val csrWriteEn = csrCtrl =/= csr.NOP                                                            // csr寄存器写使能
   val csrReadEn  = csrCtrl =/= csr.NOP                                                            // csr寄存器读使能
 
-  val rdAddr  = inst(11, 7)  // 目的寄存器地址
-  val rs1Addr = inst(19, 15) // 源寄存器地址
-  val rs2Addr = inst(24, 20) // 源寄存器地址
+  val rdAddr  = inst32(11, 7)  // 目的寄存器地址
+  val rs1Addr = inst32(19, 15) // 源寄存器地址
+  val rs2Addr = inst32(24, 20) // 源寄存器地址
 
   // 立即数扩展
   val immR     = 0.U(Config.Data.XLEN.W)
   val immN     = 0.U(Config.Data.XLEN.W)
-  val immI     = Cat(Fill(Config.Data.XLEN - 12, inst(31)), inst(31, 20))
-  val immS     = Cat(Fill(Config.Data.XLEN - 12, inst(31)), inst(31, 25), inst(11, 7))
-  val immB     = Cat(Fill(Config.Data.XLEN - 12, inst(31)), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W))
+  val immI     = Cat(Fill(Config.Data.XLEN - 12, inst32(31)), inst32(31, 20))
+  val immS     = Cat(Fill(Config.Data.XLEN - 12, inst32(31)), inst32(31, 25), inst32(11, 7))
+  val immB     = Cat(Fill(Config.Data.XLEN - 12, inst32(31)), inst32(7), inst32(30, 25), inst32(11, 8), 0.U(1.W))
   val immU     =
-    if (Config.Data.XLEN > 32) Cat(Fill(Config.Data.XLEN - 32, inst(31)), inst(31, 12), Fill(12, 0.U))
-    else Cat(inst(31, 12), Fill(12, 0.U))
-  val immJ     = Cat(Fill(Config.Data.XLEN - 20, inst(31)), inst(19, 12), inst(20), inst(30, 21), Fill(1, 0.U))
-  val immSHAMT = Cat(Fill(Config.Data.XLEN - 6, 0.U), inst(25, 20))
-  val immZIMM  = Cat(Fill(Config.Data.XLEN - 5, 0.U), inst(19, 15))
+    if (Config.Data.XLEN > 32) Cat(Fill(Config.Data.XLEN - 32, inst32(31)), inst32(31, 12), Fill(12, 0.U))
+    else Cat(inst32(31, 12), Fill(12, 0.U))
+  val immJ     = Cat(Fill(Config.Data.XLEN - 20, inst32(31)), inst32(19, 12), inst32(20), inst32(30, 21), Fill(1, 0.U))
+  val immSHAMT = Cat(Fill(Config.Data.XLEN - 6, 0.U), inst32(25, 20))
+  val immZIMM  = Cat(Fill(Config.Data.XLEN - 5, 0.U), inst32(19, 15))
 
   // 立即数
   val immData = MuxCase(
@@ -127,4 +131,5 @@ class IDU extends Module {
   ioIDU.csrCtrl    := csrCtrl             // csr控制信号
   ioIDU.excType    := excType             // exc类型
   ioIDU.preFlushPC := ioCSRIDU.preFlushPC // 预冲刷地址
+  ioIDU.pcInc      := ioIFU.pcInc         // 指令长度（2/4）
 }

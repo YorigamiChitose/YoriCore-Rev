@@ -31,4 +31,5 @@ class IDUStageBundle extends StageBundle {
   val csrCtrl    = Output(csr())                        // csr控制信号
   val excType    = Output(exc())                        // 异常连续
   val preFlushPC = Output(UInt(Config.Addr.Width.W))    // 预冲刷地址
+  val pcInc      = Output(UInt(Config.Addr.Width.W))    // 指令长度（2/4），供返回地址使用
 }

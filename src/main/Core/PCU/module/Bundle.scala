@@ -15,4 +15,6 @@ class PCUCtrlBundle extends Bundle {
 // PCU 流水信号
 class PCUStageBundle extends StageBundle {
   val pc = Output(UInt(Config.Addr.Width.W)) // PC值
+  // 复位初值指向入口地址，避免 C 扩展半字对齐下前段取指错位
+  override def initVal(): PCUStageBundle = Config.Addr.Base.U.asTypeOf(this)
 }

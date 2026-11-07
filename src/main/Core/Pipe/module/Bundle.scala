@@ -84,3 +84,15 @@ class WBUForwardingBundle extends Bundle {
     val data = Input(UInt(Config.Csr.DataWidth.W)) // 数据
   }
 }
+
+// IFU -> Forwarding：顺序 PC 计算输入（Forwarding 侧输入）
+class IFUForwardingBundle extends Bundle {
+  val pc    = Input(UInt(Config.Addr.Width.W)) // 当前 PC
+  val pcInc = Input(UInt(Config.Addr.Width.W)) // 指令长度 2/4
+  val ready = Input(Bool())                    // IFU 已产出有效指令
+}
+
+// Forwarding -> PCU：下一顺序 PC（Forwarding 侧输出）
+class PCUForwardingBundle extends Bundle {
+  val nextSeqPc = Output(UInt(Config.Addr.Width.W)) // 下一顺序 PC
+}

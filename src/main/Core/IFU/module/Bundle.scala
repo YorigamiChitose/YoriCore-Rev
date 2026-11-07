@@ -15,8 +15,9 @@ class IFUCtrlBundle extends Bundle {
 
 // IFU 流水信号
 class IFUStageBundle extends StageBundle {
-  val pc   = Output(UInt(Config.Addr.Width.W)) // PC值
-  val inst = Output(UInt(Config.Inst.Width.W)) // 指令
+  val pc    = Output(UInt(Config.Addr.Width.W)) // PC值
+  val inst  = Output(UInt(Config.Inst.Width.W)) // 指令
+  val pcInc = Output(UInt(Config.Addr.Width.W)) // 指令长度（2/4），供 PC 步进与返回地址使用
 }
 
 // IFU - 存储器 接口

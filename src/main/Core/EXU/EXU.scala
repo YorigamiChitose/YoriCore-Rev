@@ -34,7 +34,7 @@ class EXU extends Module {
       (ioIDU.op2Type === op2.NOP)  -> 0.U,           // 无
       (ioIDU.op2Type === op2.RS2)  -> ioIDU.rs2Data, // rs2寄存器
       (ioIDU.op2Type === op2.IMM)  -> ioIDU.immData, // 立即数
-      (ioIDU.op2Type === op2.FORE) -> 4.U            // +4
+      (ioIDU.op2Type === op2.FORE) -> ioIDU.pcInc    // 返回地址 = pc + 2/4
     )
   )
 

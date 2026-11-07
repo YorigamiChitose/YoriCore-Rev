@@ -10,6 +10,8 @@ class Forwarding extends Module {
   val ioIDU = IO(new IDUForwardingBundle()) // IDU - Forwarding 控制信号
   val ioEXU = IO(new EXUForwardingBundle()) // EXU - Forwarding 控制信号
   val ioWBU = IO(new WBUForwardingBundle()) // WBU - Forwarding 控制信号
+  val ioIFU = IO(new IFUForwardingBundle()) // IFU - Forwarding（顺序 PC 输入）
+  val ioPCU = IO(new PCUForwardingBundle()) // Forwarding - PCU（顺序 PC 输出）
 
   val rs1NeedPass = WireDefault(false.B) // rs1可前递
   val rs2NeedPass = WireDefault(false.B) // rs1可前递
@@ -86,4 +88,7 @@ class Forwarding extends Module {
   ioIDU.rs2.data     := rs2ForwardingData            // 前递数据
   ioIDU.csr.data     := csrForwardingData            // 前递数据
   ioIDU.needStall    := rs1NeedStall || rs2NeedStall // 等待信号
+
+  // 顺序 PC：IFU 就绪则 pc + 长度，否则保持
+  ioPCU.nextSeqPc := Mux(ioIFU.ready, ioIFU.pc + ioIFU.pcInc, ioIFU.pc)
 }

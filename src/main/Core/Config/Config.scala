@@ -5,7 +5,8 @@ import chisel3.util._
 
 object Config {
   object Inst {
-    val Width = 32
+    val Width     = 32
+    val HalfWidth = Width / 2 // 16 位压缩指令半字宽度
   }
 
   object Addr {

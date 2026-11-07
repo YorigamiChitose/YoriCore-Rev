@@ -68,6 +68,8 @@ class Core extends Module {
   WBU.ioRegWBU <> regFile.ioRegWBU // WBU - 通用寄存器 数据通路
   WBU.ioCSRWBU <> csrFile.ioCSRWBU // WBU - csr寄存器 数据通路
 
+  forwording.ioPCU <> PCU.ioPCUForwarding // PCU - 前递 数据通路
+  forwording.ioIFU <> IFU.ioIFUForwarding // IFU - 前递 数据通路
   forwording.ioIDU <> IDU.ioIDUForwarding // IDU - 前递 数据通路
   forwording.ioEXU <> EXU.ioEXUForwarding // EXU - 前递 数据通路
   forwording.ioWBU <> WBU.ioWBUForwarding // WBU - 前递 数据通路
