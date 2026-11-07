@@ -97,7 +97,7 @@ class LSU extends Module {
   ))))
 
   // MemPort 请求映射
-  val memSize  = Mux(curLen === LSUCtrl.len.B, 0.U(2.W), Mux(curLen === LSUCtrl.len.H, 1.U(2.W), 2.U(2.W)))
+  val memSize = Mux(curLen === LSUCtrl.len.B, MemSize.B, Mux(curLen === LSUCtrl.len.H, MemSize.H, MemSize.W))
   val memWstrb = Mux(curLen === LSUCtrl.len.B, "b0001".U(4.W), Mux(curLen === LSUCtrl.len.H, "b0011".U(4.W), "b1111".U(4.W)))
 
   // 单 outstanding 内存事务

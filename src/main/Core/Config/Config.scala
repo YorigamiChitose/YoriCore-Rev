@@ -34,7 +34,6 @@ object Config {
   }
 
   object Bus {
-    val MemDataWidth = Data.XLEN  // 核内自定义接口数据宽度
     val AxiAddrWidth = Addr.Width // 物理地址宽度
     val AxiDataWidth = 64         // 统一 AXI 数据位宽（行突发 4 拍 / 字窄传输单拍）
     val AxiIdWidth   = 1
