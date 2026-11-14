@@ -85,4 +85,26 @@ class Core extends Module {
   // fence.i 信号（WBU 确认后：冲刷流水 + 通知缓存回写/失效）
   val ioFenceI = IO(Output(Bool()))
   ioFenceI := WBU.ioFenceI
+
+  // 仿真可观测 tap（总开关 Config.Sim.Enable）
+  val simTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
+  simTap.foreach { s =>
+    s.commit.valid   := WBU.ioValid
+    s.commit.pc      := WBU.ioEXU.pc
+    s.commit.excType := WBU.ioEXU.excType
+    s.commit.rdEn    := WBU.ioEXU.rdEn
+    s.commit.rdAddr  := WBU.ioEXU.rdAddr
+    s.commit.rdData  := WBU.ioEXU.EXUResult
+    s.commit.csrEn   := WBU.ioEXU.csrWriteEn
+    s.commit.csrAddr := WBU.ioEXU.csrAddr
+    s.commit.csrData := WBU.ioEXU.csrResult
+    s.pc_if_valid := PC_IF.ioValid
+    s.pc_if       := PC_IF.ioNextStage
+    s.if_id_valid := IF_ID.ioValid
+    s.if_id       := IF_ID.ioNextStage
+    s.id_ex_valid := ID_EX.ioValid
+    s.id_ex       := ID_EX.ioNextStage
+    s.ex_wb_valid := EX_WB.ioValid
+    s.ex_wb       := EX_WB.ioNextStage
+  }
 }

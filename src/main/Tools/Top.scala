@@ -39,4 +39,8 @@ class Top extends Module {
   // 对外唯一 AXI4 主端口
   val ioAxi = IO(new AXI4Master(Config.Bus.AxiDataWidth))
   ioAxi <> axiAdapter.io.axi
+
+  // 仿真可观测 tap 透传（总开关）
+  val simTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
+  simTap.foreach { s => s := core.simTap.get }
 }

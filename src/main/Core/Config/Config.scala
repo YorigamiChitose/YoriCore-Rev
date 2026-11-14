@@ -43,6 +43,10 @@ object Config {
     val Base = 0xF000_0000L // MMIO 起始地址（>= Base 为不可缓存，直通）
   }
 
+  object Sim {
+    val Enable = true // 仿真可观测层总开关（SMU/SimInfo 注入）
+  }
+
   object Cache {
     val LineBytes  = 32                  // 缓存行大小（字节）
     val LineBits   = LineBytes * 8       // 缓存行位宽 256
