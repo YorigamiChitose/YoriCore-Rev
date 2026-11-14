@@ -6,3 +6,6 @@
 !/.scalafmt.conf
 !/build.mill
 !/Makefile
+!/resources/
+!/sim/
+!/tests/
