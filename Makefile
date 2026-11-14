@@ -22,6 +22,7 @@ include $(TOP_DIR)/mkscript/env.mk
 
 # 构建目标
 include $(TOP_DIR)/mkscript/verilog.mk
+include $(TOP_DIR)/mkscript/verilator.mk
 include $(TOP_DIR)/mkscript/mill.mk
 include $(TOP_DIR)/mkscript/clean.mk
 
