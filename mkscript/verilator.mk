@@ -34,9 +34,13 @@ $(SIM_BIN): $(SIM_SV_OUT) $(SIM_CSRC) $(SIM_RSRC)
 	@make -C $(SIM_BUILD_DIR) -f V$(SIM_TOP).mk -j$(shell nproc) -s
 	$(call log_done,仿真构建完成 -> $(SIM_BIN))
 
-.PHONY: sim run
+.PHONY: sim run regress
 sim: $(SIM_BIN)
 
 run: $(SIM_BIN)
 	@printf '$(C_RED)--- 仿真运行 $(subst $(TOP_DIR)/,,$(IMG)) ---$(C_OFF)\n'
 	@env -u LD_LIBRARY_PATH $(SIM_BIN) $(IMG)
+
+regress: $(SIM_BIN)
+	@printf '$(C_RED)--- 回归测试 ---$(C_OFF)\n'
+	bash $(TOP_DIR)/scripts/regression.sh
