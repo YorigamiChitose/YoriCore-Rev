@@ -44,5 +44,12 @@ class SimTop extends Module {
     simInfo.io.id_ex       := tap.id_ex
     simInfo.io.ex_wb_valid := tap.ex_wb_valid
     simInfo.io.ex_wb       := tap.ex_wb
+
+    simInfo.io.regEn   := tap.commit.valid && tap.commit.rdEn
+    simInfo.io.regAddr := tap.commit.rdAddr
+    simInfo.io.regData := tap.commit.rdData
+    simInfo.io.csrEn   := tap.commit.valid && tap.commit.csrEn
+    simInfo.io.csrAddr := tap.commit.csrAddr
+    simInfo.io.csrData := tap.commit.csrData
   }
 }

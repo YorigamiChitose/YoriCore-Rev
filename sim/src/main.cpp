@@ -1,6 +1,7 @@
 #include <VSimTop.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
+#include <verilated_sym_props.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -14,6 +15,10 @@ static uint8_t   pmem[CONFIG_MSIZE];
 static int       g_tohost = 0;
 static int       g_halted = 0;
 static uint64_t  cycle    = 0;
+
+// RegFile / CSRFile 镜像指针（由 set_gpr_ptr / set_csr_ptr 注入）
+static uint32_t *g_gpr = NULL;
+static uint32_t *g_csr = NULL;
 
 #ifdef CONFIG_WAVE
 static VerilatedVcdC *tfp      = NULL;
@@ -48,6 +53,17 @@ extern "C" void dpic_mem_write(int addr, int data, int strb) {
       if (strb & (1u << i)) pmem[off + i] = (uint8_t)(((uint32_t)data >> (8 * i)) & 0xFF);
     }
   }
+}
+
+// —— 寄存器 / CSR 镜像指针注入（被 RegFileTrace.sv / CsrFileTrace.sv 调用）——
+extern "C" void set_gpr_ptr(const svOpenArrayHandle r) {
+  VerilatedDpiOpenVar *g = (VerilatedDpiOpenVar *)r;
+  g_gpr                  = (uint32_t *)(g->datap());
+}
+
+extern "C" void set_csr_ptr(const svOpenArrayHandle r) {
+  VerilatedDpiOpenVar *g = (VerilatedDpiOpenVar *)r;
+  g_csr                  = (uint32_t *)(g->datap());
 }
 
 // 加载 hex 文本镜像：每行一个 32 位字（8 个 hex 数字），按低字节在前装入 pmem

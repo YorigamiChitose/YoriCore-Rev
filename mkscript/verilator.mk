@@ -26,6 +26,8 @@ sim:
 		$(SIM_SRC_DIR)/main.cpp \
 		$(OUT_DIR)/*.sv \
 		$(TOP_DIR)/resources/SimAXIRam.sv \
+		$(TOP_DIR)/resources/RegFileTrace.sv \
+		$(TOP_DIR)/resources/CsrFileTrace.sv \
 		-Mdir $(SIM_BUILD_DIR)
 	@make -C $(SIM_BUILD_DIR) -f V$(SIM_TOP).mk -j$(shell nproc) -s
 	$(call log_done,仿真构建完成 -> $(SIM_BIN))
