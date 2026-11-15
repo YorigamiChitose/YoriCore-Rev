@@ -29,5 +29,7 @@ class PCU extends Module {
   ioCtrl.pipe.valid := true.B // PCU准备信号默认一直为有效
 
   // PCU IO
-  ioPCU.pc := pc // 向后级传递PC
+  // 注意：输出 nextPc（组合逻辑），由 PC_IF 级间寄存器单次寄存，
+  // 避免与 pcReg 形成双重寄存导致 PC 步进滞后一拍、指令被重复译码。
+  ioPCU.pc := nextPc // 向后级传递下一PC
 }
