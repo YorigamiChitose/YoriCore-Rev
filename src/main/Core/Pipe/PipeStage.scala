@@ -15,14 +15,20 @@ class PipeStage[T <: StageBundle](stageBundle: T) extends Module {
   val stageReg = RegInit(stageBundle, stageBundle.initVal())
   val validReg = RegInit(false.B) // 数据有效信号寄存器
 
-  when(!ioPipeCtrl.valid || ioPipeCtrl.flush || (ioPipeCtrl.stallPrev && !ioPipeCtrl.stallNext)) {
-    // 前级未完成 || 被命令冲刷 || 前级停止后级继续
+  when(ioPipeCtrl.flush || (ioPipeCtrl.stallPrev && !ioPipeCtrl.stallNext)) {
+    // 被命令冲刷 || 前级停止后级继续（后级正在排空）
     stageReg := stageBundle.initVal() // 发送默认数据
     validReg := false.B               // 设置valid为false
-  }.elsewhen(!ioPipeCtrl.stallPrev) {
-    // 前级不停止
-    stageReg := ioPrevStage // 向后传输
-    validReg := true.B      // 设置valid为true
+  }.elsewhen(ioPipeCtrl.stallPrev) {
+    // 前级与后级同时停止：保持当前值（不能被前级气泡覆盖）
+  }.elsewhen(!ioPipeCtrl.valid) {
+    // 前级未完成：插入气泡
+    stageReg := stageBundle.initVal()
+    validReg := false.B
+  }.otherwise {
+    // 前级不停止：向后传输
+    stageReg := ioPrevStage
+    validReg := true.B
   }
   ioNextStage := stageReg // 后级数据
   ioValid     := validReg // 数据有效
