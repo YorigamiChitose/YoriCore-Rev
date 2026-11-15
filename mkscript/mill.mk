@@ -10,6 +10,7 @@ help:
 	@printf '  $(C_YEL)sim$(C_OFF)      构建 Verilator 仿真\n'
 	@printf '  $(C_YEL)run$(C_OFF)      运行仿真（IMG=镜像，默认 tests/smoke.hex）\n'
 	@printf '  $(C_YEL)regress$(C_OFF)  运行回归测试\n'
+	@printf '  $(C_YEL)amtest$(C_OFF)   运行 AM cpu-tests 批量回归\n'
 	@printf '  $(C_YEL)fmt$(C_OFF)      格式化 Scala 源码\n'
 	@printf '  $(C_YEL)check$(C_OFF)    校验源码格式\n'
 	@printf '  $(C_YEL)clean$(C_OFF)    清理构建产物\n'

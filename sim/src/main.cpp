@@ -69,28 +69,44 @@ extern "C" void set_csr_ptr(const svOpenArrayHandle r) {
   g_csr                  = (uint32_t *)(g->datap());
 }
 
-// 加载 hex 文本镜像：每行一个 32 位字（8 个 hex 数字），按低字节在前装入 pmem
+// 加载镜像：.bin 按原始二进制读入；否则按 hex 文本解析（每行一个 32 位字）
 static void load_image(const char *path) {
-  FILE *f = fopen(path, "r");
+  FILE *f = fopen(path, "rb");
   if (!f) {
     fprintf(stderr, "FATAL: cannot open image '%s'\n", path);
     exit(2);
   }
-  uint32_t addr = 0;
-  char     line[64];
-  while (fgets(line, sizeof(line), f)) {
-    unsigned int v = 0;
-    if (sscanf(line, "%x", &v) == 1) {
-      uint32_t off   = addr;
-      pmem[off]      = (uint8_t)(v & 0xFF);
-      pmem[off + 1]  = (uint8_t)((v >> 8) & 0xFF);
-      pmem[off + 2]  = (uint8_t)((v >> 16) & 0xFF);
-      pmem[off + 3]  = (uint8_t)((v >> 24) & 0xFF);
-      addr += 4;
+
+  size_t len = strlen(path);
+  if (len > 4 && strcmp(path + len - 4, ".bin") == 0) {
+    // 原始二进制：直接读入 pmem
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz > (long)CONFIG_MSIZE) {
+      fprintf(stderr, "FATAL: image too large (%ld > %u)\n", sz, CONFIG_MSIZE);
+      exit(2);
     }
+    size_t n = fread(pmem, 1, (size_t)sz, f);
+    printf("loaded image '%s' (%zu bytes -> 0x%08X)\n", path, n, CONFIG_MBASE);
+  } else {
+    // hex 文本：每行一个 32 位字（8 个 hex 数字），按低字节在前装入 pmem
+    uint32_t addr = 0;
+    char     line[64];
+    while (fgets(line, sizeof(line), f)) {
+      unsigned int v = 0;
+      if (sscanf(line, "%x", &v) == 1) {
+        uint32_t off   = addr;
+        pmem[off]      = (uint8_t)(v & 0xFF);
+        pmem[off + 1]  = (uint8_t)((v >> 8) & 0xFF);
+        pmem[off + 2]  = (uint8_t)((v >> 16) & 0xFF);
+        pmem[off + 3]  = (uint8_t)((v >> 24) & 0xFF);
+        addr += 4;
+      }
+    }
+    printf("loaded image '%s' (%u bytes -> 0x%08X)\n", path, addr, CONFIG_MBASE);
   }
   fclose(f);
-  printf("loaded image '%s' (%u bytes -> 0x%08X)\n", path, addr, CONFIG_MBASE);
 }
 
 // 求值一次并记录波形
@@ -112,9 +128,11 @@ static void step(void) {
 int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv);
   if (argc < 2) {
-    fprintf(stderr, "usage: %s <image.hex>\n", argv[0]);
+    fprintf(stderr, "usage: %s <image> [max_cycles]\n", argv[0]);
     return 2;
   }
+  uint64_t max_cycles = CONFIG_MAX_CYCLES;
+  if (argc >= 3) max_cycles = (uint64_t)strtoull(argv[2], NULL, 0);
 
   dut = new VSimTop;
   memset(pmem, 0, sizeof(pmem));
@@ -137,7 +155,7 @@ int main(int argc, char **argv) {
   dut->clock = 0;
   eval();
 
-  while (!g_halted && cycle < CONFIG_MAX_CYCLES) {
+  while (!g_halted && cycle < max_cycles) {
     step();
     // ebreak 优先：SMU 检测到提交的 ebreak，读 a0 判成败
     if (!g_halted && dut->ioSimEbreak) {
@@ -154,7 +172,7 @@ int main(int argc, char **argv) {
 
   if (!g_halted) {
     printf("RESULT: TIMEOUT after %llu cycles\n", (unsigned long long)cycle);
-    return 1;
+    return 2; // 超时（区别于 ebreak 判 fail 的 1）
   }
   if (g_ebreak_a0 >= 0) {
     printf("RESULT: ebreak a0=%d at cycle %llu\n", g_ebreak_a0, (unsigned long long)cycle);

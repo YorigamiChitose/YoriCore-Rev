@@ -34,7 +34,7 @@ $(SIM_BIN): $(SIM_SV_OUT) $(SIM_CSRC) $(SIM_RSRC)
 	@make -C $(SIM_BUILD_DIR) -f V$(SIM_TOP).mk -j$(shell nproc) -s
 	$(call log_done,仿真构建完成 -> $(SIM_BIN))
 
-.PHONY: sim run regress
+.PHONY: sim run regress amtest
 sim: $(SIM_BIN)
 
 run: $(SIM_BIN)
@@ -44,3 +44,7 @@ run: $(SIM_BIN)
 regress: $(SIM_BIN)
 	@printf '$(C_RED)--- 回归测试 ---$(C_OFF)\n'
 	bash $(TOP_DIR)/scripts/regression.sh
+
+amtest: $(SIM_BIN)
+	@printf '$(C_RED)--- AM cpu-tests 批量回归 ---$(C_OFF)\n'
+	bash $(TOP_DIR)/scripts/run-am-tests.sh
