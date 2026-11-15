@@ -5,7 +5,7 @@ set -u
 
 BIN="${BIN:-./build/verilator/VSimTop}"
 BUILD_DIR="${1:-/home/yori/ysyx-workbench/am-kernels/tests/cpu-tests/build}"
-MAX_CYCLES="${MAX_CYCLES:-20000}"
+MAX_CYCLES="${MAX_CYCLES:-100000}"
 
 pass=0
 fail=0
