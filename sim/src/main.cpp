@@ -20,6 +20,9 @@ static uint64_t  cycle    = 0;
 static uint32_t *g_gpr = NULL;
 static uint32_t *g_csr = NULL;
 
+// ebreak 退出时的 a0 值（-1 表示未通过 ebreak 退出）
+static int g_ebreak_a0 = -1;
+
 #ifdef CONFIG_WAVE
 static VerilatedVcdC *tfp      = NULL;
 static vluint64_t     simtime  = 0;
@@ -136,6 +139,11 @@ int main(int argc, char **argv) {
 
   while (!g_halted && cycle < CONFIG_MAX_CYCLES) {
     step();
+    // ebreak 优先：SMU 检测到提交的 ebreak，读 a0 判成败
+    if (!g_halted && dut->ioSimEbreak) {
+      g_halted    = 1;
+      g_ebreak_a0 = (int)(g_gpr ? g_gpr[10] : 0);
+    }
   }
 
 #ifdef CONFIG_WAVE
@@ -147,6 +155,10 @@ int main(int argc, char **argv) {
   if (!g_halted) {
     printf("RESULT: TIMEOUT after %llu cycles\n", (unsigned long long)cycle);
     return 1;
+  }
+  if (g_ebreak_a0 >= 0) {
+    printf("RESULT: ebreak a0=%d at cycle %llu\n", g_ebreak_a0, (unsigned long long)cycle);
+    return (g_ebreak_a0 == 0) ? 0 : 1;
   }
   printf("RESULT: tohost=%d at cycle %llu\n", g_tohost, (unsigned long long)cycle);
   return (g_tohost == 1) ? 0 : 1;
