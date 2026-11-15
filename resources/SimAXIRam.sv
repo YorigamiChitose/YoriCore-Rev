@@ -2,8 +2,10 @@
 // 端口名与 Chisel 黑盒实例匹配（无 io_ 前缀）。
 // 实现 AW/W/B/AR/R 五通道握手，支持突发（行访问 4 拍）与单拍（MMIO 直通），
 // 数据按 beat 通过 DPI-C 转发给 C++ 的 pmem。
+// LATENCY：读/写响应延迟（额外等待周期），0 为最小 ~2 拍。
 module SimAXIRam #(
-  parameter integer ADDR_WIDTH = 32
+  parameter integer ADDR_WIDTH = 32,
+  parameter integer LATENCY    = 0
 )(
   input                    clock,
   input                    reset,
@@ -49,8 +51,9 @@ module SimAXIRam #(
   import "DPI-C" function int  dpic_mem_read (input int addr);
   import "DPI-C" function void dpic_mem_write(input int addr, input int data, input int strb);
 
-  localparam S_IDLE = 2'd0, S_RD = 2'd1, S_WR = 2'd2, S_WR_B = 2'd3;
-  reg [1:0] state;
+  localparam S_IDLE = 3'd0, S_RD_WAIT = 3'd1, S_RD = 3'd2,
+             S_WR = 3'd3, S_B_WAIT = 3'd4, S_B = 3'd5;
+  reg [2:0] state;
 
   reg [ADDR_WIDTH-1:0] r_addr;
   reg             [7:0] r_len;
@@ -58,31 +61,42 @@ module SimAXIRam #(
   reg             [0:0] r_id;
   reg             [7:0] w_cnt;
   reg            [63:0] rdata;
+  reg             [7:0] lat_cnt;
 
   always @(posedge clock) begin
     if (reset) begin
-      state <= S_IDLE;
-      r_addr <= 0;
-      r_len  <= 0;
-      r_cnt  <= 0;
-      r_id   <= 0;
-      w_cnt  <= 0;
-      rdata  <= 0;
+      state   <= S_IDLE;
+      r_addr  <= 0;
+      r_len   <= 0;
+      r_cnt   <= 0;
+      r_id    <= 0;
+      w_cnt   <= 0;
+      rdata   <= 0;
+      lat_cnt <= 0;
     end else begin
       case (state)
         S_IDLE: begin
           if (axi_ar_valid && axi_ar_ready) begin
-            r_addr <= axi_ar_bits_addr;
-            r_len  <= axi_ar_bits_len;
-            r_cnt  <= 0;
-            r_id   <= axi_ar_bits_id;
-            rdata  <= {dpic_mem_read(axi_ar_bits_addr + 4), dpic_mem_read(axi_ar_bits_addr)};
-            state  <= S_RD;
+            r_addr  <= axi_ar_bits_addr;
+            r_len   <= axi_ar_bits_len;
+            r_cnt   <= 0;
+            r_id    <= axi_ar_bits_id;
+            lat_cnt <= 0;
+            state   <= S_RD_WAIT;
           end else if (axi_aw_valid && axi_aw_ready) begin
             r_addr <= axi_aw_bits_addr;
             r_len  <= axi_aw_bits_len;
             w_cnt  <= 0;
             state  <= S_WR;
+          end
+        end
+        S_RD_WAIT: begin
+          if (lat_cnt >= LATENCY) begin
+            // 首拍数据（8 字节：低字 + 高字）
+            rdata <= {dpic_mem_read(r_addr + 4), dpic_mem_read(r_addr)};
+            state <= S_RD;
+          end else begin
+            lat_cnt <= lat_cnt + 1;
           end
         end
         S_RD: begin
@@ -101,10 +115,17 @@ module SimAXIRam #(
             dpic_mem_write(r_addr + w_cnt * 8,     axi_w_bits_data[31:0],  axi_w_bits_strb[3:0]);
             dpic_mem_write(r_addr + w_cnt * 8 + 4, axi_w_bits_data[63:32], axi_w_bits_strb[7:4]);
             w_cnt <= w_cnt + 1;
-            if (axi_w_bits_last) state <= S_WR_B;
+            if (axi_w_bits_last) begin
+              lat_cnt <= 0;
+              state   <= S_B_WAIT;
+            end
           end
         end
-        S_WR_B: begin
+        S_B_WAIT: begin
+          if (lat_cnt >= LATENCY) state <= S_B;
+          else lat_cnt <= lat_cnt + 1;
+        end
+        S_B: begin
           if (axi_b_valid && axi_b_ready) state <= S_IDLE;
         end
         default: state <= S_IDLE;
@@ -123,7 +144,7 @@ module SimAXIRam #(
 
   assign axi_w_ready = (state == S_WR);
 
-  assign axi_b_valid     = (state == S_WR_B);
+  assign axi_b_valid     = (state == S_B);
   assign axi_b_bits_id   = 1'b0;
   assign axi_b_bits_resp = 2'b00;
 endmodule

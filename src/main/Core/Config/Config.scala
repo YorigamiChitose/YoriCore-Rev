@@ -44,7 +44,8 @@ object Config {
   }
 
   object Sim {
-    val Enable = true // 仿真可观测层总开关（SMU/SimInfo 注入）
+    val Enable     = true // 仿真可观测层总开关（SMU/SimInfo 注入）
+    val AxiLatency = 0    // AXI 存储模型响应延迟（额外等待周期）
   }
 
   object Cache {

@@ -11,7 +11,7 @@ import Sim._
 // + 仿真可观测层（SMU / SimInfo，总开关 Config.Sim.Enable）
 class SimTop extends Module {
   val core = Module(new Top)
-  val ram  = Module(new SimAXIRam)
+  val ram  = Module(new SimAXIRam(Config.Sim.AxiLatency))
 
   ram.io.clock := clock
   ram.io.reset := reset
