@@ -91,4 +91,5 @@ class Forwarding extends Module {
 
   // 顺序 PC：IFU 就绪则 pc + 长度，否则保持
   ioPCU.nextSeqPc := Mux(ioIFU.ready, ioIFU.pc + ioIFU.pcInc, ioIFU.pc)
+  ioPCU.ready     := ioIFU.ready
 }

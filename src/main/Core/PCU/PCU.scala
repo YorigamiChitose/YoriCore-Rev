@@ -17,8 +17,12 @@ class PCU extends Module {
   val nextPc = WireDefault(0.U(Config.Addr.Width.W))                    // 下一pc值
   val pcReg  = RegNext(nextPc, Config.Addr.Base.U(Config.Addr.Width.W)) // pc寄存器
 
-  // 冲刷时: 使用flushPC 默认时: 确定是否被停止, 不是则步进（由 Forwarding 给出 +2/+4）
-  nextPc := Mux(ioCtrl.pipe.flush, ioCtrl.flushPC, Mux(ioCtrl.pipe.stall, pc, ioPCUForwarding.nextSeqPc))
+  // 冲刷时: 使用flushPC 默认时: 未就绪或停止则保持, 否则步进（由 Forwarding 给出 +2/+4）
+  nextPc := Mux(
+    ioCtrl.pipe.flush,
+    ioCtrl.flushPC,
+    Mux(ioCtrl.pipe.stall || !ioPCUForwarding.ready, pc, ioPCUForwarding.nextSeqPc)
+  )
   pc     := pcReg
 
   // Pipe控制

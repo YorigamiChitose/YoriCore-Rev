@@ -95,4 +95,5 @@ class IFUForwardingBundle extends Bundle {
 // Forwarding -> PCU：下一顺序 PC（Forwarding 侧输出）
 class PCUForwardingBundle extends Bundle {
   val nextSeqPc = Output(UInt(Config.Addr.Width.W)) // 下一顺序 PC
+  val ready     = Output(Bool())                    // IFU 已产出有效指令
 }
