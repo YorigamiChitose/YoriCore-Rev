@@ -41,8 +41,8 @@ class AXI4Adapter extends Module {
 
   // 窄传输在 64 位总线内的字节偏移（0..7）
   val byteOff = rAddr(2, 0)
-  val wData64 = Cat(rData(31, 0), 0.U(32.W)) << (byteOff * 8.U)
-  val wStrb64 = Cat(rStrb(3, 0), 0.U(4.W)) << byteOff
+  val wData64 = Cat(0.U(32.W), rData(31, 0)) << (byteOff * 8.U)
+  val wStrb64 = Cat(0.U(4.W), rStrb(3, 0)) << byteOff
 
   // 行写：按 beat 取 64 位片
   val wBeatData = (rData >> (beatCnt * axiDataWidth.U))(axiDataWidth - 1, 0)

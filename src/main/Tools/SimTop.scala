@@ -20,6 +20,8 @@ class SimTop extends Module {
 
   // 观测层（仅当 Config.Sim.Enable）
   val ioSimEbreak = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
+  val ioSimCommitValid = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
+  val ioSimCommitPc    = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Addr.Width.W)))) else None
   if (Config.Sim.Enable) {
     val smu     = Module(new SMU)
     val simInfo = Module(new SimInfo)
@@ -35,6 +37,8 @@ class SimTop extends Module {
     smu.io.csrAddr     := tap.commit.csrAddr
     smu.io.csrData     := tap.commit.csrData
     ioSimEbreak.get := smu.io.ebreak
+    ioSimCommitValid.get := smu.io.commitValid
+    ioSimCommitPc.get    := smu.io.commitPc
 
     simInfo.io.pc_if_valid := tap.pc_if_valid
     simInfo.io.pc_if       := tap.pc_if
