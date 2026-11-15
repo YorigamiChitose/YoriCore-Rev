@@ -78,9 +78,11 @@ class IFU extends Module {
   }
 
   when(ioCtrl.pipe.flush) {
-    fetchPending := false.B
-    bufAValid    := false.B
-    bufBValid    := false.B
+    // 注意：不在此清 fetchPending。若冲刷时已有在途取指（缓存已接受请求），
+    // 清掉它会导致缓存返回数据时 resp.ready=0，缓存卡在 sResp，形成死锁。
+    // 保留 fetchPending，待旧响应回来后按 bufAAddr 不匹配自然丢弃并重新取指。
+    bufAValid := false.B
+    bufBValid := false.B
   }
 
   // 组装指令：低半字为 PC 处半字，高半字为 PC+半字 处半字
