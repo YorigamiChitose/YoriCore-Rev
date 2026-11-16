@@ -1,0 +1,25 @@
+# 定向测试预期结束值清单
+# 每个测试通过 ebreak 退出并写 a0 作为结果值：0 表示通过，非 0 为失败码。
+# 格式：<测试名> <预期 a0>
+# 运行 `make test` 时按此清单逐个执行并对比实际 a0，输出 PASS/FAIL 及结果值。
+
+smoke               0
+ebreak_fail         1
+diag_jal            0
+diag_store          0
+cache_passthrough   0
+cache_writeback     0
+axi_mmio_nonaligned 0
+
+# RV32IM 指令测试
+inst_arith          0
+inst_arith_imm      0
+inst_lui_auipc      0
+inst_branch         0
+inst_jump           0
+inst_load           0
+inst_store          0
+inst_mul            0
+inst_div            0
+inst_csr            0
+inst_sys            0
