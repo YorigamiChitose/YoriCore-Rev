@@ -39,10 +39,9 @@ class AXI4Adapter extends Module {
   val beats   = Mux(isLine, lineBeats.U, 1.U)
   val beatCnt = RegInit(0.U(log2Ceil(lineBeats).W))
 
-  // 窄传输在 64 位总线内的字节偏移（0..7）
-  val byteOff = rAddr(2, 0)
-  val wData64 = Cat(0.U(32.W), rData(31, 0)) << (byteOff * 8.U)
-  val wStrb64 = Cat(0.U(4.W), rStrb(3, 0)) << byteOff
+  // 窄传输：数据/strb 右对齐（低字节通道），由 AXI size 与自然对齐地址决定字节通道
+  val wData64 = Cat(0.U(32.W), rData(31, 0))
+  val wStrb64 = Cat(0.U(4.W), rStrb(3, 0))
 
   // 行写：按 beat 取 64 位片
   val wBeatData = (rData >> (beatCnt * axiDataWidth.U))(axiDataWidth - 1, 0)
@@ -52,14 +51,14 @@ class AXI4Adapter extends Module {
   // —— AXI 默认输出 ——
   io.axi.aw.bits.id    := 0.U
   io.axi.aw.bits.len   := len
-  io.axi.aw.bits.size  := 3.U(3.W) // 8 字节/拍
+  io.axi.aw.bits.size  := rSize // MemSize 直接映射 AXI size（B/H/W/Line -> 0/1/2/3）
   io.axi.aw.bits.burst := AXI4.Burst.INCR
   io.axi.aw.bits.cache := 0.U
   io.axi.aw.bits.prot  := 0.U
 
   io.axi.ar.bits.id    := 0.U
   io.axi.ar.bits.len   := len
-  io.axi.ar.bits.size  := 3.U(3.W)
+  io.axi.ar.bits.size  := rSize
   io.axi.ar.bits.burst := AXI4.Burst.INCR
   io.axi.ar.bits.cache := 0.U
   io.axi.ar.bits.prot  := 0.U
@@ -111,7 +110,7 @@ class AXI4Adapter extends Module {
     when(isLine) {
       rAcc := rAcc | (io.axi.r.bits.data << (beatCnt * axiDataWidth.U))
     }.otherwise {
-      val wd = (io.axi.r.bits.data >> (byteOff * 8.U))(31, 0)
+      val wd = io.axi.r.bits.data(31, 0)
       rAcc := Cat(0.U((lineBits - 32).W), wd)
     }
     when(beatCnt === (beats - 1.U)) { state := sResp }
