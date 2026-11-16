@@ -158,6 +158,8 @@ class EXU extends Module {
 
   // EXU IO
   ioEXU.pc         := ioIDU.pc         // PC值
+  if (Config.Sim.Enable) ioEXU.inst := ioIDU.inst // 原始指令（纯旁路观测）
+  else ioEXU.inst := DontCare
   ioEXU.rdEn       := ioIDU.rdEn       // 目的寄存器使能
   ioEXU.rdAddr     := ioIDU.rdAddr     // 目的寄存器地址
   ioEXU.csrResult  := CSRResult        // csr计算结果 存入CSR
@@ -167,4 +169,30 @@ class EXU extends Module {
   ioEXU.rs2Data    := ioIDU.rs2Data    // rs2数据
   ioEXU.EXUResult  := EXUResult        // EXU计算结果
   ioEXU.excType    := ioIDU.excType    // 异常类型
+
+  // 架构下一 PC（纯旁路观测）：分支目标 / trap 目标 / 顺序 pc + pcInc
+  val commitNpc = MuxCase(
+    ioIDU.pc + ioIDU.pcInc,
+    Seq(
+      isBranchSuccess      -> Branch.ioBranch.branchPC,
+      (isTrap || isFenceI) -> ioIDU.preFlushPC
+    )
+  )
+  if (Config.Sim.Enable) ioEXU.npc := commitNpc
+  else ioEXU.npc := DontCare
+
+  // 访存提交信息（纯旁路观测，供 difftest/提交流；Sim.Enable=false 时全部零宽）
+  if (Config.Sim.Enable) {
+    ioEXU.memValid := LSU.ioLSU.access.valid
+    ioEXU.memWrite := LSU.ioLSU.access.write
+    ioEXU.memAddr  := LSU.ioLSU.access.addr
+    ioEXU.memWdata := LSU.ioLSU.access.wdata
+    ioEXU.memSize  := LSU.ioLSU.access.size
+  } else {
+    ioEXU.memValid := DontCare
+    ioEXU.memWrite := DontCare
+    ioEXU.memAddr  := DontCare
+    ioEXU.memWdata := DontCare
+    ioEXU.memSize  := DontCare
+  }
 }

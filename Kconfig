@@ -1,0 +1,51 @@
+mainmenu "YoriCore Simulation Configuration"
+
+menu "Debug"
+config WAVE
+  bool "Generate waveform"
+  default n
+endmenu
+
+menu "Memory"
+config MBASE
+  hex "Memory base address"
+  default 0x80000000
+
+config MSIZE
+  hex "Memory size"
+  default 0x1000000
+
+config PC_RESET_OFFSET
+  hex "Offset of reset vector from memory base"
+  default 0x0
+
+config MEM_RANDOM
+  bool "Randomize memory on init"
+  default n
+endmenu
+
+menu "Halt device"
+config HALT_ADDR
+  hex "Halt/tohost device address (1-byte write)"
+  default 0xF0000000
+endmenu
+
+menu "Difftest"
+config DIFFTEST
+  bool "Enable difftest"
+  default y
+
+config DIFFTEST_DEFAULT_ON
+  bool "Enable difftest at startup"
+  depends on DIFFTEST
+  default n
+
+config DIFFTEST_REF_PATH
+  string "Reference .so path"
+  depends on DIFFTEST
+  default "build/ref/riscv32-spike-so"
+endmenu
+
+config MAX_CYCLES
+  int "Max cycles per cpu_exec run"
+  default 2000000

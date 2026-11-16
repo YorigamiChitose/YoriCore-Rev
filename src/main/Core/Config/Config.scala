@@ -44,8 +44,12 @@ object Config {
   }
 
   object Sim {
-    val Enable     = true // 仿真可观测层总开关（SMU/SimInfo 注入）
+    val Enable     = true // 仿真可观测层总开关（SMU/SimInfo/tap/观测字段注入）
     val AxiLatency = 0    // AXI 存储模型响应延迟（额外等待周期）
+
+    // 仿真观测字段宽度：关闭时取 0 宽，firtool 会完全消除，保证不影响内核
+    def obsWidth(w: Int): Int = if (Enable) w else 0
+    def obsUInt(w: Int): UInt  = UInt(obsWidth(w).W)
   }
 
   object Cache {

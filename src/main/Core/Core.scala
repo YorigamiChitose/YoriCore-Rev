@@ -18,6 +18,7 @@ import Core.WBU.module._
 import Core.Reg._
 import Core.Reg.module._
 import Core.Bus._
+import Core.Cache._
 import Core.Config.Config
 
 class Core extends Module {
@@ -75,36 +76,53 @@ class Core extends Module {
   forwording.ioEXU <> EXU.ioEXUForwarding // EXU - 前递 数据通路
   forwording.ioWBU <> WBU.ioWBUForwarding // WBU - 前递 数据通路
 
-  // 对外统一访存主端口
-  val ioIMemPort = IO(new MemPort)
-  IFU.ioMemPort <> ioIMemPort
+  // L1 I$/D$ + 单一仲裁：Cache 属于 Core，对外仅一个 MemPort
+  val iCache  = Module(new L1Cache)
+  val dCache  = Module(new L1Cache)
+  val arbiter = Module(new MemArbiter)
 
-  val ioDMemPort = IO(new MemPort)
-  EXU.ioMemPort <> ioDMemPort
+  IFU.ioMemPort <> iCache.io.cpu
+  EXU.ioMemPort <> dCache.io.cpu
 
-  // fence.i 信号（WBU 确认后：冲刷流水 + 通知缓存回写/失效）
-  val ioFenceI = IO(Output(Bool()))
-  ioFenceI := WBU.ioFenceI
+  val ioMemPort = IO(new MemPort)
+  iCache.io.mem <> arbiter.io.in0
+  dCache.io.mem <> arbiter.io.in1
+  arbiter.io.out <> ioMemPort
+
+  // fence.i 排序：D$ 写回排空完成前，I$ 暂停对外服务，避免读回旧指令
+  val fenceOrder = RegInit(false.B)
+  when(WBU.ioFenceI) { fenceOrder := true.B }
+  when(dCache.io.fenceDone) { fenceOrder := false.B }
+  iCache.io.fence := WBU.ioFenceI
+  dCache.io.fence := WBU.ioFenceI
+  iCache.io.hold  := fenceOrder
+  dCache.io.hold  := false.B
 
   // 仿真可观测 tap（总开关 Config.Sim.Enable）
   val simTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
   simTap.foreach { s =>
-    s.commit.valid   := WBU.ioValid
-    s.commit.pc      := WBU.ioEXU.pc
-    s.commit.excType := WBU.ioEXU.excType
-    s.commit.rdEn    := WBU.ioEXU.rdEn
-    s.commit.rdAddr  := WBU.ioEXU.rdAddr
-    s.commit.rdData  := WBU.ioEXU.EXUResult
-    s.commit.csrEn   := WBU.ioEXU.csrWriteEn
-    s.commit.csrAddr := WBU.ioEXU.csrAddr
-    s.commit.csrData := WBU.ioEXU.csrResult
-    s.pc_if_valid := PC_IF.ioValid
-    s.pc_if       := PC_IF.ioNextStage
-    s.if_id_valid := IF_ID.ioValid
-    s.if_id       := IF_ID.ioNextStage
-    s.id_ex_valid := ID_EX.ioValid
-    s.id_ex       := ID_EX.ioNextStage
-    s.ex_wb_valid := EX_WB.ioValid
-    s.ex_wb       := EX_WB.ioNextStage
+    s.commit.valid    := WBU.ioValid
+    s.commit.pc       := WBU.ioEXU.pc
+    s.commit.npc      := WBU.ioEXU.npc
+    s.commit.inst     := WBU.ioEXU.inst
+    s.commit.priv     := csrFile.ioPriv.get
+    s.commit.excType  := WBU.ioEXU.excType
+    s.commit.rdEn     := WBU.ioEXU.rdEn
+    s.commit.rdAddr   := WBU.ioEXU.rdAddr
+    s.commit.rdData   := WBU.ioEXU.EXUResult
+    s.commit.csrEn    := WBU.ioEXU.csrWriteEn
+    s.commit.csrAddr  := WBU.ioEXU.csrAddr
+    s.commit.csrData  := WBU.ioEXU.csrResult
+    s.commit.memValid := WBU.ioEXU.memValid.asBool
+    s.commit.memWrite := WBU.ioEXU.memWrite.asBool
+    s.commit.memAddr  := WBU.ioEXU.memAddr
+    s.commit.memWdata := WBU.ioEXU.memWdata
+    s.commit.memSize  := WBU.ioEXU.memSize
+
+    s.csr.mepc    := csrFile.ioMepc.get
+    s.csr.mcause  := csrFile.ioMcause.get
+    s.csr.mstatus := csrFile.ioMstatus.get
+    s.csr.mtvec   := csrFile.ioMtvec.get
+    s.csr.priv    := csrFile.ioPriv.get
   }
 }

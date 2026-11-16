@@ -1,9 +1,5 @@
-# ===============================================================
-#  清理目标
-# ===============================================================
-
 .PHONY: clean
 
 clean:
-	@printf '$(C_RED)--- 清理 $(subst $(TOP_DIR)/,,$(OUT_DIR)) ---$(C_OFF)\n'
-	rm -rf $(OUT_DIR) $(TEST_BUILD_DIR)
+	@printf '$(C_RED)--- 清理构建产物 ---$(C_OFF)\n'
+	rm -rf $(OUT_DIR) $(SIM_BUILD_DIR) $(BUILD_DIR)/ref $(BUILD_DIR)/tests $(BUILD_DIR)/difftest

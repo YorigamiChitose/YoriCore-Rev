@@ -1,0 +1,30 @@
+#include "isa/isa.h"
+#include "memory/memory.h"
+#include "monitor/monitor.h"
+#include "utils.h"
+#include <cstdio>
+#include <cstring>
+
+void engine_start(void) { sdb_mainloop(); }
+
+void init_isa(void) {
+  cpu.pc = RESET_VECTOR;
+  for (int i = 0; i < 32; i++) cpu.gpr[i] = 0;
+  cpu.csr.mepc = 0;
+  cpu.csr.mcause = 0;
+  cpu.csr.mstatus = 0x1800;
+  cpu.csr.mtvec = 0;
+  cpu.mode = 0x03;
+}
+
+void set_npc_state(int state, vaddr_t pc, int halt_ret) {
+  npc_state.state = state;
+  npc_state.halt_pc = pc;
+  npc_state.halt_ret = halt_ret;
+}
+
+__attribute__((noinline)) void invalid_inst(vaddr_t pc, word_t inst) {
+  uint8_t *p = (uint8_t *)&inst;
+  printf("invalid opcode(PC = " FMT_WORD "):\n\t%02x %02x %02x %02x\n", pc, p[0], p[1], p[2], p[3]);
+  set_npc_state(NPC_ABORT, pc, -1);
+}

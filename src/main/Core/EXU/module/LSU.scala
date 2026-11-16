@@ -47,6 +47,14 @@ class LSUBundle extends Bundle {
   val flush   = Input(Bool())                    // 冲刷
   val dataOut = Output(UInt(Config.Data.XLEN.W)) // 结果
   val ready   = Output(Bool())                   // 完成
+  // 本次访存的提交信息（纯旁路观测；Sim.Enable=false 时为零宽）
+  val access  = new Bundle {
+    val valid = Output(Config.Sim.obsUInt(1))
+    val write = Output(Config.Sim.obsUInt(1))
+    val addr  = Output(Config.Sim.obsUInt(Config.Addr.Width))
+    val wdata = Output(Config.Sim.obsUInt(Config.Data.XLEN))
+    val size  = Output(Config.Sim.obsUInt(2)) // MemSize.B/H/W
+  }
 }
 
 class LSU extends Module {
@@ -82,6 +90,22 @@ class LSU extends Module {
     (curCtrl === mem.AMOMINU) || (curCtrl === mem.AMOMAXU)
   val isLR    = curCtrl === mem.LR
   val isSC    = curCtrl === mem.SC
+
+  // 访存提交信息（纯旁路观测；Sim.Enable=false 时全部零宽）
+  val curSize = Mux(curLen === LSUCtrl.len.B, MemSize.B, Mux(curLen === LSUCtrl.len.H, MemSize.H, MemSize.W))
+  if (Config.Sim.Enable) {
+    ioLSU.access.valid := (state === sDone) && (ctrlReg =/= mem.NOP)
+    ioLSU.access.write := isStore || isAMO || isSC
+    ioLSU.access.addr  := addrReg
+    ioLSU.access.wdata := dataReg
+    ioLSU.access.size  := curSize
+  } else {
+    ioLSU.access.valid := DontCare
+    ioLSU.access.write := DontCare
+    ioLSU.access.addr  := DontCare
+    ioLSU.access.wdata := DontCare
+    ioLSU.access.size  := DontCare
+  }
 
   // 原子操作编码（下沉到缓存）
   val amoOp = Mux(curCtrl === mem.LR, AmoOp.LR, Mux(curCtrl === mem.SC, AmoOp.SC, MuxCase(AmoOp.NOP, Seq(

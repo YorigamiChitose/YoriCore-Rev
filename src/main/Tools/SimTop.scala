@@ -7,8 +7,9 @@ import Core._
 import Core.Config.Config
 import Sim._
 
-// 仿真顶层：Top（核心 + I$/D$ + 单一 AXI 主端口）+ AXI4 从设备存储模型
-// + 仿真可观测层（SMU / SimInfo，总开关 Config.Sim.Enable）
+// 仿真顶层：Top（Core 含 Cache/Arbiter + AXI Adapter）+ AXI 存储模型
+// + 仅仿真观测黑盒（SimCommit / SimCsr）。
+// C++ monitor 通过 DPI 获取提交与 CSR 状态；核心不导出仿真端口。
 class SimTop extends Module {
   val core = Module(new Top)
   val ram  = Module(new SimAXIRam(Config.Sim.AxiLatency))
@@ -18,42 +19,37 @@ class SimTop extends Module {
 
   core.ioAxi <> ram.io.axi
 
-  // 观测层（仅当 Config.Sim.Enable）
-  val ioSimEbreak = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
-  val ioSimCommitValid = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
-  val ioSimCommitPc    = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Addr.Width.W)))) else None
   if (Config.Sim.Enable) {
-    val smu     = Module(new SMU)
-    val simInfo = Module(new SimInfo)
-    val tap     = core.simTap.get
+    val tap = core.simTap.get
 
-    smu.io.commitValid := tap.commit.valid
-    smu.io.commitPc    := tap.commit.pc
-    smu.io.commitExc   := tap.commit.excType
-    smu.io.rdEn        := tap.commit.rdEn
-    smu.io.rdAddr      := tap.commit.rdAddr
-    smu.io.rdData      := tap.commit.rdData
-    smu.io.csrEn       := tap.commit.csrEn
-    smu.io.csrAddr     := tap.commit.csrAddr
-    smu.io.csrData     := tap.commit.csrData
-    ioSimEbreak.get := smu.io.ebreak
-    ioSimCommitValid.get := smu.io.commitValid
-    ioSimCommitPc.get    := smu.io.commitPc
+    val commit = Module(new SimCommit)
+    commit.io.clock    := clock
+    commit.io.reset    := reset
+    commit.io.valid    := tap.commit.valid
+    commit.io.pc       := tap.commit.pc
+    commit.io.npc      := tap.commit.npc
+    commit.io.inst     := tap.commit.inst
+    commit.io.priv     := tap.commit.priv
+    commit.io.exc      := tap.commit.excType.asUInt
+    commit.io.rdEn     := tap.commit.rdEn && (tap.commit.rdAddr =/= 0.U)
+    commit.io.rdAddr   := tap.commit.rdAddr
+    commit.io.rdData   := tap.commit.rdData
+    commit.io.csrEn    := tap.commit.csrEn
+    commit.io.csrAddr  := tap.commit.csrAddr
+    commit.io.csrData  := tap.commit.csrData
+    commit.io.memValid := tap.commit.memValid
+    commit.io.memWrite := tap.commit.memWrite
+    commit.io.memAddr  := tap.commit.memAddr
+    commit.io.memWdata := tap.commit.memWdata
+    commit.io.memSize  := tap.commit.memSize
 
-    simInfo.io.pc_if_valid := tap.pc_if_valid
-    simInfo.io.pc_if       := tap.pc_if
-    simInfo.io.if_id_valid := tap.if_id_valid
-    simInfo.io.if_id       := tap.if_id
-    simInfo.io.id_ex_valid := tap.id_ex_valid
-    simInfo.io.id_ex       := tap.id_ex
-    simInfo.io.ex_wb_valid := tap.ex_wb_valid
-    simInfo.io.ex_wb       := tap.ex_wb
-
-    simInfo.io.regEn   := tap.commit.valid && tap.commit.rdEn
-    simInfo.io.regAddr := tap.commit.rdAddr
-    simInfo.io.regData := tap.commit.rdData
-    simInfo.io.csrEn   := tap.commit.valid && tap.commit.csrEn
-    simInfo.io.csrAddr := tap.commit.csrAddr
-    simInfo.io.csrData := tap.commit.csrData
+    val csr = Module(new SimCsr)
+    csr.io.clock   := clock
+    csr.io.reset   := reset
+    csr.io.mepc    := tap.csr.mepc
+    csr.io.mcause  := tap.csr.mcause
+    csr.io.mstatus := tap.csr.mstatus
+    csr.io.mtvec   := tap.csr.mtvec
+    csr.io.priv    := tap.csr.priv
   }
 }

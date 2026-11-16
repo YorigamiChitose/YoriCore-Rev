@@ -6,7 +6,9 @@
 !/.scalafmt.conf
 !/build.mill
 !/Makefile
+!/Kconfig
+!/defconfig
 !/resources/
 !/sim/
-!/tests/
+sim/inc/autoconf/autoconf.h
 *.vcd
