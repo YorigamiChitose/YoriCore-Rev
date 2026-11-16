@@ -10,4 +10,4 @@
 #define CONFIG_MMIO_SIZE (4u * 1024u)         // 4KB MMIO 存储（tohost 位于偏移 0，特殊处理）
 #define CONFIG_MAX_CYCLES 2000000ull          // 仿真超时周期数
 
-#define CONFIG_WAVE 1                        // 是否生成 VCD 波形
+// #define CONFIG_WAVE 1                        // 是否生成 VCD 波形
