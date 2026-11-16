@@ -12,6 +12,7 @@
 
 static VSimTop  *dut      = NULL;
 static uint8_t   pmem[CONFIG_MSIZE];
+static uint8_t   mmio[CONFIG_MMIO_SIZE];
 static int       g_tohost = 0;
 static int       g_halted = 0;
 static uint64_t  cycle    = 0;
@@ -39,7 +40,14 @@ extern "C" int dpic_mem_read(int addr) {
                  ((uint32_t)pmem[off + 2] << 16) |
                  ((uint32_t)pmem[off + 3] << 24));
   }
-  return 0; // MMIO 读返回 0
+  if (a >= CONFIG_MMIO_BASE && a + 4 <= CONFIG_MMIO_BASE + CONFIG_MMIO_SIZE) {
+    uint32_t off = a - CONFIG_MMIO_BASE;
+    return (int)((uint32_t)mmio[off] |
+                 ((uint32_t)mmio[off + 1] << 8) |
+                 ((uint32_t)mmio[off + 2] << 16) |
+                 ((uint32_t)mmio[off + 3] << 24));
+  }
+  return 0; // 其它地址读返回 0
 }
 
 // 写 32 位字（strb 为 4 位字节使能；低 bit 对应低字节）
@@ -54,6 +62,11 @@ extern "C" void dpic_mem_write(int addr, int data, int strb) {
     uint32_t off = a - CONFIG_MBASE;
     for (int i = 0; i < 4; i++) {
       if (strb & (1u << i)) pmem[off + i] = (uint8_t)(((uint32_t)data >> (8 * i)) & 0xFF);
+    }
+  } else if (a >= CONFIG_MMIO_BASE && a + 4 <= CONFIG_MMIO_BASE + CONFIG_MMIO_SIZE) {
+    uint32_t off = a - CONFIG_MMIO_BASE;
+    for (int i = 0; i < 4; i++) {
+      if (strb & (1u << i)) mmio[off + i] = (uint8_t)(((uint32_t)data >> (8 * i)) & 0xFF);
     }
   }
 }
@@ -136,6 +149,7 @@ int main(int argc, char **argv) {
 
   dut = new VSimTop;
   memset(pmem, 0, sizeof(pmem));
+  memset(mmio, 0, sizeof(mmio));
   load_image(argv[1]);
 
 #ifdef CONFIG_WAVE
