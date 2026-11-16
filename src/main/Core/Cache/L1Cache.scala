@@ -155,7 +155,7 @@ class L1Cache extends Module {
 
   val uncached = !cacheable
   io.cpu.req.ready := Mux(uncached, io.mem.req.ready, (state === sIdle) && !draining && !io.hold)
-  val reqFire   = io.cpu.req.valid && io.cpu.req.ready
+  val reqFire   = io.cpu.req.valid && io.cpu.req.ready && cacheable
   val needEvict = !hit && dirty(victim)(index)
 
   // PLRU 更新（命中路径）
