@@ -9,4 +9,4 @@
 !/resources/
 !/sim/
 !/tests/
-!/scripts/
+*.vcd

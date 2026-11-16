@@ -6,4 +6,4 @@
 
 clean:
 	@printf '$(C_RED)--- 清理 $(subst $(TOP_DIR)/,,$(OUT_DIR)) ---$(C_OFF)\n'
-	rm -rf $(OUT_DIR)
+	rm -rf $(OUT_DIR) $(TEST_BUILD_DIR)

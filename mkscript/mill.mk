@@ -1,19 +1,8 @@
 # ===============================================================
-#  Mill 辅助目标：格式化与帮助
+#  Mill 辅助目标：格式化与校验
 # ===============================================================
 
-.PHONY: help fmt check
-
-help:
-	@printf '$(C_BLU)可用目标:$(C_OFF)\n'
-	@printf '  $(C_YEL)verilog$(C_OFF)   生成 Verilog 至 $(OUT_DIR)\n'
-	@printf '  $(C_YEL)sim$(C_OFF)      构建 Verilator 仿真\n'
-	@printf '  $(C_YEL)run$(C_OFF)      运行仿真（IMG=镜像，默认 tests/smoke.hex）\n'
-	@printf '  $(C_YEL)regress$(C_OFF)  运行回归测试\n'
-	@printf '  $(C_YEL)amtest$(C_OFF)   运行 AM cpu-tests 批量回归\n'
-	@printf '  $(C_YEL)fmt$(C_OFF)      格式化 Scala 源码\n'
-	@printf '  $(C_YEL)check$(C_OFF)    校验源码格式\n'
-	@printf '  $(C_YEL)clean$(C_OFF)    清理构建产物\n'
+.PHONY: fmt check
 
 fmt:
 	mill -i __.reformat

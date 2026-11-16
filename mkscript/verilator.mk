@@ -9,7 +9,7 @@ SIM_BUILD_DIR := $(BUILD_DIR)/verilator
 SIM_BIN       := $(SIM_BUILD_DIR)/V$(SIM_TOP)
 SIM_SV_OUT    := $(OUT_DIR)/$(SIM_TOP).sv
 
-IMG ?= $(TOP_DIR)/tests/smoke.hex
+IMG ?= $(TEST_BUILD_DIR)/smoke.bin
 
 SIM_CSRC := $(shell find $(SIM_SRC_DIR) -name '*.cpp' 2>/dev/null)
 SIM_RSRC := $(wildcard $(TOP_DIR)/resources/*.sv)
@@ -34,17 +34,9 @@ $(SIM_BIN): $(SIM_SV_OUT) $(SIM_CSRC) $(SIM_RSRC)
 	@make -C $(SIM_BUILD_DIR) -f V$(SIM_TOP).mk -j$(shell nproc) -s
 	$(call log_done,仿真构建完成 -> $(SIM_BIN))
 
-.PHONY: sim run regress amtest
+.PHONY: sim run
 sim: $(SIM_BIN)
 
-run: $(SIM_BIN)
+run: $(SIM_BIN) $(IMG)
 	@printf '$(C_RED)--- 仿真运行 $(subst $(TOP_DIR)/,,$(IMG)) ---$(C_OFF)\n'
 	@env -u LD_LIBRARY_PATH $(SIM_BIN) $(IMG)
-
-regress: $(SIM_BIN)
-	@printf '$(C_RED)--- 回归测试 ---$(C_OFF)\n'
-	bash $(TOP_DIR)/scripts/regression.sh
-
-amtest: $(SIM_BIN)
-	@printf '$(C_RED)--- AM cpu-tests 批量回归 ---$(C_OFF)\n'
-	bash $(TOP_DIR)/scripts/run-am-tests.sh
