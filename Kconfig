@@ -24,6 +24,17 @@ config MEM_RANDOM
   default n
 endmenu
 
+
+menu "Devices"
+config RTC_ADDR
+  hex "RTC MMIO base address"
+  default 0x0200B000
+
+config SERIAL_PORT
+  hex "UART MMIO base address"
+  default 0x10000000
+endmenu
+
 menu "Halt device"
 config HALT_ADDR
   hex "Halt/tohost device address (1-byte write)"

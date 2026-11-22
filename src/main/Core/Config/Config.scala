@@ -39,8 +39,20 @@ object Config {
     val AxiIdWidth   = 1
   }
 
+  object Mem {
+    // 可缓存 DRAM 区间：与仿真 autoconf.h 的 CONFIG_MBASE/CONFIG_MSIZE 对齐
+    val Base = 0x8000_0000L     // 内存基址（= Addr.Base = 复位向量）
+    val Size = 0x1000_0000L     // 16MB
+  }
+
   object Mmio {
-    val Base = 0xF000_0000L // MMIO 起始地址（>= Base 为不可缓存，直通）
+    // 不可缓存（直通）设备区间：Seq[(起始地址, 大小字节)]
+    // 与仿真侧 sim/src/device/device.cpp 的设备表保持一致（单一契约）
+    val Devices: Seq[(Long, Long)] = Seq(
+      (0x0200_B000L, 0x1000L),     // RTC（只读 64 位微秒，ysyx 约定）
+      (0x1000_0000L, 0x1000L),     // UART (ns16550)，预留 4KB
+      (0xF000_0000L, 0x1000_0000L) // halt 及其它 MMIO（覆盖到 0xFFFFFFFF）
+    )
   }
 
   object Sim {

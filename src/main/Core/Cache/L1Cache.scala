@@ -17,7 +17,7 @@ class MemResolve extends Bundle {
 
 // 组相联、写回、写分配的 L1 缓存，树形 PLRU 替换。
 // 未命中：先写回脏行（若需），再从存储器读整行填入后，再返回给 CPU。
-// 不可缓存地址（>= Mmio.Base）直通到 io.mem，绕过缓存存储。
+// 可缓存地址（落在 Mem 区间内）进缓存，其余（MMIO 及其它）直通到 io.mem 绕过缓存。
 // 唯一存储器侧接口 io.mem（统一 MemPort），行访问 size=Line，字访问 size=B/H/W。
 class L1Cache extends Module {
   val io = IO(new Bundle {
@@ -40,7 +40,8 @@ class L1Cache extends Module {
 
   // 请求分解（字部分取低 32 位）
   val reqAddr     = io.cpu.req.bits.addr
-  val cacheable   = reqAddr < Config.Mmio.Base.U // PMA：低于 MMIO 基址才可缓存
+  // PMA：落在可缓存 DRAM 区间则进缓存，否则（MMIO 及其它）直通绕过缓存
+  val cacheable = reqAddr >= Config.Mem.Base.U && reqAddr < (Config.Mem.Base + Config.Mem.Size).U
   val reqWrite    = io.cpu.req.bits.write
   val reqData     = io.cpu.req.bits.wdata(xlen - 1, 0)
   val reqWstrb    = io.cpu.req.bits.wstrb((xlen / 8) - 1, 0)

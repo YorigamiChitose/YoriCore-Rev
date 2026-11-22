@@ -4,6 +4,7 @@
 #include "difftest/difftest.h"
 #include "isa/isa.h"
 #include "macro.h"
+#include "device/device.h"
 #include "memory/memory.h"
 #include "utils.h"
 #include "verilator/verilator.h"
@@ -84,8 +85,8 @@ static bool drain_commits(void) {
     if (npc_state.state != NPC_RUNNING) return true;
     if (handled) continue;
 
-    // 其它 MMIO：ref 没有对应设备模型，先跳过该条对比
-    if (c.mem_valid && c.mem_addr >= (uint32_t)CONFIG_HALT_ADDR) {
+    // MMIO 设备：ref 没有对应设备模型，先跳过该条对比
+    if (c.mem_valid && device_is_mmio(c.mem_addr)) {
       difftest_skip_ref();
     } else {
       difftest_step(c.pc, c.npc);
