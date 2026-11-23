@@ -73,6 +73,13 @@ static bool handle_halt(const CommitEvent &c) {
   return true;
 }
 
+static bool difftest_skip_inst(uint32_t inst) {
+  return inst == 0x10500073u || // wfi
+         inst == 0x0ff0000fu || // fence
+         inst == 0x00100073u || // ebreak
+         inst == 0x00009002u;   // c.ebreak
+}
+
 static bool drain_commits(void) {
   bool retired = false;
   CommitEvent c;
@@ -85,12 +92,12 @@ static bool drain_commits(void) {
     if (npc_state.state != NPC_RUNNING) return true;
     if (handled) continue;
 
-    // MMIO 设备：ref 没有对应设备模型，先跳过该条对比
     if (c.mem_valid && device_is_mmio(c.mem_addr)) {
       difftest_skip_ref();
-    } else {
-      difftest_step(c.pc, c.npc);
+    } else if (difftest_skip_inst(c.inst)) {
+      difftest_skip_ref();
     }
+    difftest_step(c.pc, c.npc);
     if (npc_state.state != NPC_RUNNING) return true;
   }
   return retired;

@@ -16,10 +16,30 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 
 bool enable_difftest = false;
 static bool is_skip_ref = false;
+static int skip_dut_nr_inst = 0;
 
 void difftest_skip_ref(void) {
   if (!enable_difftest) return;
   is_skip_ref = true;
+  skip_dut_nr_inst = 0;
+}
+
+void difftest_skip_dut(int nr_ref, int nr_dut) {
+  if (!enable_difftest) return;
+  skip_dut_nr_inst += nr_dut;
+  while (nr_ref-- > 0) {
+    ref_difftest_exec(1);
+  }
+}
+
+void difftest_detach(void) {
+  enable_difftest = false;
+}
+
+void difftest_attach(void) {
+  if (ref_difftest_regcpy == NULL) return;
+  ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
+  enable_difftest = true;
 }
 
 static void checkregs(CPU_state *ref, vaddr_t pc) {
@@ -59,6 +79,23 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
   if (!enable_difftest) return;
 
   CPU_state ref_r;
+
+  if (skip_dut_nr_inst > 0) {
+    ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
+    if (ref_r.pc == npc) {
+      skip_dut_nr_inst = 0;
+      checkregs(&ref_r, npc);
+      return;
+    }
+    skip_dut_nr_inst--;
+    if (skip_dut_nr_inst == 0) {
+      Log("can not catch up with ref.pc = " FMT_WORD " at pc = " FMT_WORD, ref_r.pc, pc);
+      npc_state.state = NPC_ABORT;
+      npc_state.halt_pc = pc;
+    }
+    return;
+  }
+
   if (is_skip_ref) {
     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
     is_skip_ref = false;
@@ -68,6 +105,5 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
   ref_difftest_exec(1);
   ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
   checkregs(&ref_r, pc);
-
   (void)npc;
 }
