@@ -40,8 +40,11 @@ class L1Cache extends Module {
 
   // 请求分解（字部分取低 32 位）
   val reqAddr     = io.cpu.req.bits.addr
-  // PMA：落在可缓存 DRAM 区间则进缓存，否则（MMIO 及其它）直通绕过缓存
-  val cacheable = reqAddr >= Config.Mem.Base.U && reqAddr < (Config.Mem.Base + Config.Mem.Size).U
+  // PMA 完备检查：内存区间与设备区间都显式判断，cache（可缓存）与 mem（直通）共用。
+  // 可缓存 = 落在内存区间内 且 不属于任何 MMIO 设备区间（不靠排除法省略设备检查）。
+  val inMem      = Config.Pma.isMem(reqAddr)
+  val inMmio     = Config.Pma.isMmio(reqAddr)
+  val cacheable  = inMem && !inMmio
   val reqWrite    = io.cpu.req.bits.write
   val reqData     = io.cpu.req.bits.wdata(xlen - 1, 0)
   val reqWstrb    = io.cpu.req.bits.wstrb((xlen / 8) - 1, 0)

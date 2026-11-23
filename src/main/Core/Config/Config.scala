@@ -55,6 +55,27 @@ object Config {
     )
   }
 
+  // 物理内存属性（PMA）译码：cache 与 mem 共用的完备地址区间检查。
+  // 任一地址必须显式归类为「内存（可缓存）」「MMIO 设备（不可缓存直通）」「未映射」，
+  // 不允许靠排除法省略对设备区间的判断。
+  object Pma {
+    // 是否落在 [base, base+size) 区间
+    private def inRange(addr: UInt, base: Long, size: Long): Bool =
+      addr >= base.U && addr < (base + size).U
+
+    // 是否落在可缓存内存区间
+    def isMem(addr: UInt): Bool = inRange(addr, Mem.Base, Mem.Size)
+
+    // 是否落在任一 MMIO 设备区间（显式检查每个设备，非空安全）
+    def isMmio(addr: UInt): Bool =
+      Mmio.Devices.foldLeft(false.B) { case (acc, (base, size)) =>
+        acc || inRange(addr, base, size)
+      }
+
+    // 是否可缓存：必须在内存区间内，且不属于任何 MMIO 设备区间（完备检查）
+    def isCacheable(addr: UInt): Bool = isMem(addr) && !isMmio(addr)
+  }
+
   object Sim {
     val Enable     = true // 仿真可观测层总开关（SMU/SimInfo/tap/观测字段注入）
     val AxiLatency = 0    // AXI 存储模型响应延迟（额外等待周期）
