@@ -41,17 +41,17 @@ object Config {
 
   object Mem {
     // 可缓存 DRAM 区间：与仿真 autoconf.h 的 CONFIG_MBASE/CONFIG_MSIZE 对齐
-    val Base = 0x8000_0000L     // 内存基址（= Addr.Base = 复位向量）
-    val Size = 0x1000_0000L     // 16MB
+    val Base = 0x8000_0000L // 内存基址（= Addr.Base = 复位向量）
+    val Size = 0x1000_0000L // 16MB
   }
 
   object Mmio {
     // 不可缓存（直通）设备区间：Seq[(起始地址, 大小字节)]
     // 与仿真侧 sim/src/device/device.cpp 的设备表保持一致（单一契约）
     val Devices: Seq[(Long, Long)] = Seq(
-      (0x0200_B000L, 0x1000L),     // RTC（只读 64 位微秒，ysyx 约定）
-      (0x1000_0000L, 0x1000L),     // UART (ns16550)，预留 4KB
-      (0xF000_0000L, 0x1000L)      // halt（单字节写，4KB 即可）
+      (0x0200_b000L, 0x1000L), // RTC（只读 64 位微秒，ysyx 约定）
+      (0x1000_0000L, 0x1000L), // UART (ns16550)，预留 4KB
+      (0xf000_0000L, 0x1000L)  // halt（单字节写，4KB 即可）
     )
   }
 
@@ -81,19 +81,19 @@ object Config {
     val AxiLatency = 0    // AXI 存储模型响应延迟（额外等待周期）
 
     // 仿真观测字段宽度：关闭时取 0 宽，firtool 会完全消除，保证不影响内核
-    def obsWidth(w: Int): Int = if (Enable) w else 0
-    def obsUInt(w: Int): UInt  = UInt(obsWidth(w).W)
+    def obsWidth(w: Int): Int  = if (Enable) w else 0
+    def obsUInt(w:  Int): UInt = UInt(obsWidth(w).W)
   }
 
   object Cache {
-    val LineBytes  = 32                  // 缓存行大小（字节）
-    val LineBits   = LineBytes * 8       // 缓存行位宽 256
-    val LineWidth  = log2Ceil(LineBytes) // 行内字节偏移位 5
+    val LineBytes = 32                  // 缓存行大小（字节）
+    val LineBits  = LineBytes * 8       // 缓存行位宽 256
+    val LineWidth = log2Ceil(LineBytes) // 行内字节偏移位 5
 
-    val NumWays    = 4                   // 组相联路数
-    val NumSets    = 64                  // 组数
-    val PLRUBits   = NumWays - 1         // 树形 PLRU 每组位数
-    val IndexWidth = log2Ceil(NumSets)   // 组索引位宽 6
+    val NumWays    = 4                                   // 组相联路数
+    val NumSets    = 64                                  // 组数
+    val PLRUBits   = NumWays - 1                         // 树形 PLRU 每组位数
+    val IndexWidth = log2Ceil(NumSets)                   // 组索引位宽 6
     val TagWidth   = Addr.Width - IndexWidth - LineWidth // tag 位宽
     val WordBits   = log2Ceil(LineBits / Data.XLEN)      // 行内字数位宽
   }

@@ -112,26 +112,26 @@ class IDU extends Module {
   ioCtrl.stallReq   := ioIDUForwarding.needStall // 前递需要等待
 
   // IDU IO
-  ioIDU.pc         := ioIFU.pc            // PC值
-  if (Config.Sim.Enable) ioIDU.inst := ioIFU.inst // 原始指令（旁路观测）
-  else ioIDU.inst := DontCare
-  ioIDU.rdEn       := rdEn                // 目的寄存器使能
-  ioIDU.rdAddr     := rdAddr              // 目的寄存器地址
-  ioIDU.rs1Data    := rs1Data             // 源寄存器1数据
-  ioIDU.rs2Data    := rs2Data             // 源寄存器2数据
-  ioIDU.op1Type    := op1Type             // 操作数1类型
-  ioIDU.op2Type    := op2Type             // 操作数2类型
-  ioIDU.immData    := immData             // 立即数
-  ioIDU.csrAddr    := csrAddr             // csr地址
-  ioIDU.csrData    := csrData             // csr数据
-  ioIDU.csrWriteEn := csrWriteEn          // csr写使能
-  ioIDU.aluCtrl    := aluCtrl             // alu控制信号
-  ioIDU.mulCtrl    := mulCtrl             // mul控制信号
-  ioIDU.divCtrl    := divCtrl             // div控制信号
-  ioIDU.branchCtrl := branchCtrl          // 分支控制信号
-  ioIDU.memCtrl    := memCtrl             // 访存控制信号
-  ioIDU.csrCtrl    := csrCtrl             // csr控制信号
-  ioIDU.excType    := excType             // exc类型
-  ioIDU.preFlushPC := Mux(excType === exc.FENCE_I, ioIFU.pc + ioIFU.pcInc, ioCSRIDU.preFlushPC) // 预冲刷地址（fence.i 指向下一条）
-  ioIDU.pcInc      := ioIFU.pcInc         // 指令长度（2/4）
+  ioIDU.pc                          := ioIFU.pc                                                                  // PC值
+  if (Config.Sim.Enable) ioIDU.inst := ioIFU.inst                                                                // 原始指令（旁路观测）
+  else ioIDU.inst                   := DontCare
+  ioIDU.rdEn                        := rdEn                                                                      // 目的寄存器使能
+  ioIDU.rdAddr                      := rdAddr                                                                    // 目的寄存器地址
+  ioIDU.rs1Data                     := rs1Data                                                                   // 源寄存器1数据
+  ioIDU.rs2Data                     := rs2Data                                                                   // 源寄存器2数据
+  ioIDU.op1Type                     := op1Type                                                                   // 操作数1类型
+  ioIDU.op2Type                     := op2Type                                                                   // 操作数2类型
+  ioIDU.immData                     := immData                                                                   // 立即数
+  ioIDU.csrAddr                     := csrAddr                                                                   // csr地址
+  ioIDU.csrData                     := csrData                                                                   // csr数据
+  ioIDU.csrWriteEn                  := csrWriteEn                                                                // csr写使能
+  ioIDU.aluCtrl                     := aluCtrl                                                                   // alu控制信号
+  ioIDU.mulCtrl                     := mulCtrl                                                                   // mul控制信号
+  ioIDU.divCtrl                     := divCtrl                                                                   // div控制信号
+  ioIDU.branchCtrl                  := branchCtrl                                                                // 分支控制信号
+  ioIDU.memCtrl                     := memCtrl                                                                   // 访存控制信号
+  ioIDU.csrCtrl                     := csrCtrl                                                                   // csr控制信号
+  ioIDU.excType                     := excType                                                                   // exc类型
+  ioIDU.preFlushPC                  := Mux(excType === exc.FENCE_I, ioIFU.pc + ioIFU.pcInc, ioCSRIDU.preFlushPC) // 预冲刷地址（fence.i 指向下一条）
+  ioIDU.pcInc                       := ioIFU.pcInc                                                               // 指令长度（2/4）
 }

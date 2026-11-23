@@ -42,9 +42,9 @@ class L1Cache extends Module {
   val reqAddr     = io.cpu.req.bits.addr
   // PMA 完备检查：内存区间与设备区间都显式判断，cache（可缓存）与 mem（直通）共用。
   // 可缓存 = 落在内存区间内 且 不属于任何 MMIO 设备区间（不靠排除法省略设备检查）。
-  val inMem      = Config.Pma.isMem(reqAddr)
-  val inMmio     = Config.Pma.isMmio(reqAddr)
-  val cacheable  = inMem && !inMmio
+  val inMem       = Config.Pma.isMem(reqAddr)
+  val inMmio      = Config.Pma.isMmio(reqAddr)
+  val cacheable   = inMem && !inMmio
   val reqWrite    = io.cpu.req.bits.write
   val reqData     = io.cpu.req.bits.wdata(xlen - 1, 0)
   val reqWstrb    = io.cpu.req.bits.wstrb((xlen / 8) - 1, 0)
@@ -63,10 +63,7 @@ class L1Cache extends Module {
   val hitWay = PriorityEncoder(hitVec.asUInt)
 
   // PLRU 替换候选（树形）
-  val victim = Mux(plru(index)(Config.Cache.PLRUBits - 1),
-    Mux(plru(index)(Config.Cache.PLRUBits - 2), 0.U, 1.U),
-    Mux(plru(index)(Config.Cache.PLRUBits - 3), 2.U, 3.U)
-  )
+  val victim = Mux(plru(index)(Config.Cache.PLRUBits - 1), Mux(plru(index)(Config.Cache.PLRUBits - 2), 0.U, 1.U), Mux(plru(index)(Config.Cache.PLRUBits - 3), 2.U, 3.U))
 
   // 行内读：按 size 取出字节/半字/字并右对齐（符号扩展归消费者）
   def readLine(line: UInt, widx: UInt, byteOff: UInt, size: UInt): UInt = {
@@ -85,38 +82,52 @@ class L1Cache extends Module {
   }
 
   // AMO 新值（AmoOp.ADD 为默认）
-  def atomicNew(oldW: UInt, op: UInt, d: UInt): UInt = MuxCase(oldW + d, Seq(
-    (op === AmoOp.SWAP) -> d,
-    (op === AmoOp.XOR)  -> (oldW ^ d),
-    (op === AmoOp.AND)  -> (oldW & d),
-    (op === AmoOp.OR)   -> (oldW | d),
-    (op === AmoOp.MIN)  -> Mux(oldW.asSInt < d.asSInt, oldW, d),
-    (op === AmoOp.MAX)  -> Mux(oldW.asSInt > d.asSInt, oldW, d),
-    (op === AmoOp.MINU) -> Mux(oldW < d, oldW, d),
-    (op === AmoOp.MAXU) -> Mux(oldW > d, oldW, d)
-  ))
+  def atomicNew(oldW: UInt, op: UInt, d: UInt): UInt = MuxCase(
+    oldW + d,
+    Seq(
+      (op === AmoOp.SWAP) -> d,
+      (op === AmoOp.XOR)  -> (oldW ^ d),
+      (op === AmoOp.AND)  -> (oldW & d),
+      (op === AmoOp.OR)   -> (oldW | d),
+      (op === AmoOp.MIN)  -> Mux(oldW.asSInt < d.asSInt, oldW, d),
+      (op === AmoOp.MAX)  -> Mux(oldW.asSInt > d.asSInt, oldW, d),
+      (op === AmoOp.MINU) -> Mux(oldW < d, oldW, d),
+      (op === AmoOp.MAXU) -> Mux(oldW > d, oldW, d)
+    )
+  )
 
   // 统一访存解析（命中/未命中共用）：普通读/写、AMO/LR/SC 都收敛在这一处
   def resolve(
-    line: UInt, addr: UInt, widx: UInt, boW: UInt, boL: UInt,
-    write: Bool, size: UInt, d: UInt, strb: UInt, amo: UInt, scOk: Bool
+    line:  UInt,
+    addr:  UInt,
+    widx:  UInt,
+    boW:   UInt,
+    boL:   UInt,
+    write: Bool,
+    size:  UInt,
+    d:     UInt,
+    strb:  UInt,
+    amo:   UInt,
+    scOk:  Bool
   ): MemResolve = {
-    val r    = Wire(new MemResolve)
-    val isAmo = amo =/= AmoOp.NOP
-    val isLr  = amo === AmoOp.LR
-    val isSc  = amo === AmoOp.SC
-    val oldW  = readLine(line, widx, boW, MemSize.W)
+    val r       = Wire(new MemResolve)
+    val isAmo   = amo =/= AmoOp.NOP
+    val isLr    = amo === AmoOp.LR
+    val isSc    = amo === AmoOp.SC
+    val oldW    = readLine(line, widx, boW, MemSize.W)
     val wrLine  = writeLine(line, boL, d, strb)
     val amoLine = writeLine(line, boL, atomicNew(oldW, amo, d), strb)
 
-    r.line := MuxCase(line, Seq(
-      (write && !isAmo)        -> wrLine,  // 普通写
-      (isSc && scOk)           -> wrLine,  // SC 成功
-      (isAmo && !isLr && !isSc) -> amoLine // AMO
-    ))
-    r.dirty := (write && !isAmo) || (isSc && scOk) || (isAmo && !isLr && !isSc)
-    r.resp := Mux(isSc, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)),
-      Mux(isAmo, oldW, readLine(line, widx, boW, size)))
+    r.line     := MuxCase(
+      line,
+      Seq(
+        (write && !isAmo)         -> wrLine, // 普通写
+        (isSc && scOk)            -> wrLine, // SC 成功
+        (isAmo && !isLr && !isSc) -> amoLine // AMO
+      )
+    )
+    r.dirty    := (write && !isAmo) || (isSc && scOk) || (isAmo && !isLr && !isSc)
+    r.resp     := Mux(isSc, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)), Mux(isAmo, oldW, readLine(line, widx, boW, size)))
     r.resSet   := isLr
     // TODO: 当前为对齐 Spike 仅由 SC 清 reservation；同 hart store/AMO 的失效策略待多 hart/严格模型时重新评估。
     r.resClear := isSc
@@ -126,7 +137,7 @@ class L1Cache extends Module {
 
   // 树形 PLRU 更新（把 way 标记为 MRU），命中/填充共用
   def updatePLRU(set: UInt, way: UInt): Unit = {
-    val op = plru(set)
+    val op  = plru(set)
     val nb1 = Mux(way(1) === 0.U, way(0), op(Config.Cache.PLRUBits - 2))
     val nb0 = Mux(way(1) === 1.U, way(0), op(Config.Cache.PLRUBits - 3))
     plru(set) := Cat(way(1), nb1, nb0)
@@ -134,7 +145,7 @@ class L1Cache extends Module {
 
   // 状态机
   val sIdle :: sEvict :: sEvictWait :: sFetch :: sFetchWait :: sResp :: Nil = Enum(6)
-  val state = RegInit(sIdle)
+  val state                                                                 = RegInit(sIdle)
 
   val rAddr    = RegInit(0.U(Config.Addr.Width.W))
   val rAlign   = RegInit(0.U(Config.Addr.Width.W))
@@ -193,22 +204,21 @@ class L1Cache extends Module {
         when(!hit) {
           state := Mux(needEvict, sEvict, sFetch)
         }.otherwise {
-          val m = resolve(data(hitWay)(index), reqAddr, wordIdx, byteOffWord, byteOffLine,
-            reqWrite, reqSize, reqData, reqWstrb, reqAmo, resValid && (resAddr === reqAddr))
+          val m = resolve(data(hitWay)(index), reqAddr, wordIdx, byteOffWord, byteOffLine, reqWrite, reqSize, reqData, reqWstrb, reqAmo, resValid && (resAddr === reqAddr))
           data(hitWay)(index) := m.line
           when(m.dirty) { dirty(hitWay)(index) := true.B }
           when(m.resSet) { resValid := true.B; resAddr := m.resAddr }
           when(m.resClear) { resValid := false.B }
-          respWord := m.resp
-          state := sResp
+          respWord            := m.resp
+          state               := sResp
         }
       }
     }
     is(sEvict) {
-      fsmReqValid := true.B
-      fsmReqAddr  := Cat(tag(rWay)(rIndex), rIndex, 0.U(Config.Cache.LineWidth.W))
-      fsmReqWrite := true.B
-      fsmReqWdata := data(rWay)(rIndex)
+      fsmReqValid         := true.B
+      fsmReqAddr          := Cat(tag(rWay)(rIndex), rIndex, 0.U(Config.Cache.LineWidth.W))
+      fsmReqWrite         := true.B
+      fsmReqWdata         := data(rWay)(rIndex)
       dirty(rWay)(rIndex) := false.B
       when(io.mem.req.ready) { state := sEvictWait }
     }
@@ -226,8 +236,7 @@ class L1Cache extends Module {
       fsmRespReady := true.B
       when(io.mem.resp.valid) {
         val baseLine = io.mem.resp.bits.rdata
-        val m = resolve(baseLine, rAddr, rWord, rByteOff(1, 0), rByteOff,
-          rWrite, rSize, rData, rWstrb, rAmo, resValid && (resAddr === rAddr))
+        val m        = resolve(baseLine, rAddr, rWord, rByteOff(1, 0), rByteOff, rWrite, rSize, rData, rWstrb, rAmo, resValid && (resAddr === rAddr))
         data(rWay)(rIndex)  := m.line
         tag(rWay)(rIndex)   := rTag
         valid(rWay)(rIndex) := true.B
@@ -235,8 +244,8 @@ class L1Cache extends Module {
         when(m.resSet) { resValid := true.B; resAddr := m.resAddr }
         when(m.resClear) { resValid := false.B }
         updatePLRU(rIndex, rWay)
-        respWord := m.resp
-        state := sResp
+        respWord            := m.resp
+        state               := sResp
       }
     }
     is(sResp) {
@@ -283,10 +292,10 @@ class L1Cache extends Module {
         drainCnt := drainCnt + 1.U
       }
     }.elsewhen(curDirty) {
-      fsmReqValid := true.B
-      fsmReqAddr  := Cat(tag(curWay)(curIdx), curIdx, 0.U(Config.Cache.LineWidth.W))
-      fsmReqWrite := true.B
-      fsmReqWdata := data(curWay)(curIdx)
+      fsmReqValid           := true.B
+      fsmReqAddr            := Cat(tag(curWay)(curIdx), curIdx, 0.U(Config.Cache.LineWidth.W))
+      fsmReqWrite           := true.B
+      fsmReqWdata           := data(curWay)(curIdx)
       dirty(curWay)(curIdx) := false.B
       valid(curWay)(curIdx) := false.B
       when(io.mem.req.ready) { drainWb := true.B }

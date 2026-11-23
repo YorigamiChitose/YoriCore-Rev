@@ -30,7 +30,7 @@ class MemArbiter extends Module {
   }
 
   io.in0.resp.valid := busy && !sel && io.out.resp.valid
-  io.in1.resp.valid := busy &&  sel && io.out.resp.valid
+  io.in1.resp.valid := busy && sel && io.out.resp.valid
   io.in0.resp.bits  := io.out.resp.bits
   io.in1.resp.bits  := io.out.resp.bits
   io.out.resp.ready := Mux(sel, io.in1.resp.ready, io.in0.resp.ready)

@@ -15,7 +15,7 @@ class EXU extends Module {
   val ioEXU           = IO(new EXUStageBundle())               // 下级流水信号
   val ioIDU           = IO(Flipped(new IDUStageBundle))        // 上级流水信号
   val ioEXUForwarding = IO(Flipped(new EXUForwardingBundle())) // EXU - 前递 接口
-  val ioMemPort       = IO(new MemPort)                       // 数据存储器（主侧）
+  val ioMemPort       = IO(new MemPort)                        // 数据存储器（主侧）
   val ioValid         = IO(Input(Bool()))                      // 上级数据有效信号
 
   // 操作数1
@@ -107,7 +107,7 @@ class EXU extends Module {
   // Pipe控制
   // 陷阱类指令：冲刷到CSR给出的地址，同时需提交到WBU完成状态更新
   val isFenceI = ioIDU.excType === exc.FENCE_I
-  val isTrap = (ioIDU.excType === exc.ECALL) || (ioIDU.excType === exc.MRET) || (ioIDU.excType === exc.SRET)
+  val isTrap   = (ioIDU.excType === exc.ECALL) || (ioIDU.excType === exc.MRET) || (ioIDU.excType === exc.SRET)
   ioCtrl.stallReq   := ((ioIDU.mulCtrl =/= mul.NOP) && !MULReady) ||
     ((ioIDU.divCtrl =/= div.NOP) && !DIVReady) ||
     (ioIDU.memCtrl =/= mem.NOP) && !LSUReady
@@ -159,18 +159,18 @@ class EXU extends Module {
   LSU.ioMemPort <> ioMemPort
 
   // EXU IO
-  ioEXU.pc         := ioIDU.pc         // PC值
-  if (Config.Sim.Enable) ioEXU.inst := ioIDU.inst // 原始指令（纯旁路观测）
-  else ioEXU.inst := DontCare
-  ioEXU.rdEn       := ioIDU.rdEn       // 目的寄存器使能
-  ioEXU.rdAddr     := ioIDU.rdAddr     // 目的寄存器地址
-  ioEXU.csrResult  := CSRResult        // csr计算结果 存入CSR
-  ioEXU.csrAddr    := ioIDU.csrAddr    // csr地址
-  ioEXU.csrWriteEn := ioIDU.csrWriteEn // csr写使能
-  ioEXU.rs1Data    := ioIDU.rs1Data    // rs1数据
-  ioEXU.rs2Data    := ioIDU.rs2Data    // rs2数据
-  ioEXU.EXUResult  := EXUResult        // EXU计算结果
-  ioEXU.excType    := ioIDU.excType    // 异常类型
+  ioEXU.pc                          := ioIDU.pc         // PC值
+  if (Config.Sim.Enable) ioEXU.inst := ioIDU.inst       // 原始指令（纯旁路观测）
+  else ioEXU.inst                   := DontCare
+  ioEXU.rdEn                        := ioIDU.rdEn       // 目的寄存器使能
+  ioEXU.rdAddr                      := ioIDU.rdAddr     // 目的寄存器地址
+  ioEXU.csrResult                   := CSRResult        // csr计算结果 存入CSR
+  ioEXU.csrAddr                     := ioIDU.csrAddr    // csr地址
+  ioEXU.csrWriteEn                  := ioIDU.csrWriteEn // csr写使能
+  ioEXU.rs1Data                     := ioIDU.rs1Data    // rs1数据
+  ioEXU.rs2Data                     := ioIDU.rs2Data    // rs2数据
+  ioEXU.EXUResult                   := EXUResult        // EXU计算结果
+  ioEXU.excType                     := ioIDU.excType    // 异常类型
 
   // 架构下一 PC（纯旁路观测）：分支目标 / trap 目标 / 顺序 pc + pcInc
   val commitNpc = MuxCase(

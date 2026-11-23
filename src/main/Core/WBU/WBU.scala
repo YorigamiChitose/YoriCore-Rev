@@ -24,7 +24,7 @@ class WBU extends Module {
   ioCtrl.flushReq := ioValid &&
     ((ioEXU.excType === exc.ECALL) || (ioEXU.excType === exc.MRET) || (ioEXU.excType === exc.SRET) || isFenceI) // 冲刷请求
   ioCtrl.flushPC := Mux(ioValid && isFenceI, ioEXU.pc + (Config.Inst.Width / 8).U, ioCSRWBU.flushPC) // 冲刷地址
-  ioFenceI := ioValid && isFenceI
+  ioFenceI       := ioValid && isFenceI
 
   ioRegWBU.rd.en   := ioEXU.rdEn && ioValid // rd写入使能
   ioRegWBU.rd.addr := ioEXU.rdAddr          // rd写入地址

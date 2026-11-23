@@ -21,7 +21,7 @@ class AXI4Adapter extends Module {
   val beatBytes    = axiDataWidth / 8        // 8
 
   val sIdle :: sAw :: sW :: sB :: sAr :: sR :: sResp :: Nil = Enum(7)
-  val state = RegInit(sIdle)
+  val state                                                 = RegInit(sIdle)
 
   val rAddr  = RegInit(0.U(Config.Addr.Width.W))
   val rWrite = RegInit(false.B)
@@ -63,11 +63,11 @@ class AXI4Adapter extends Module {
   io.axi.ar.bits.cache := 0.U
   io.axi.ar.bits.prot  := 0.U
 
-  io.mem.req.ready      := state === sIdle
-  io.mem.resp.valid     := state === sResp
+  io.mem.req.ready       := state === sIdle
+  io.mem.resp.valid      := state === sResp
   io.mem.resp.bits.rdata := rAcc
   // 不可缓存地址上的原子操作（amoOp=/=NOP）不受支持，到达边界即报总线错误（方案 1）
-  io.mem.resp.bits.err  := rAmo =/= AmoOp.NOP
+  io.mem.resp.bits.err   := rAmo =/= AmoOp.NOP
 
   // 请求锁存
   when(state === sIdle && io.mem.req.valid) {
@@ -79,29 +79,27 @@ class AXI4Adapter extends Module {
     rAmo    := io.mem.req.bits.amoOp
     beatCnt := 0.U
     rAcc    := 0.U
-    when(io.mem.req.bits.write) { state := sAw }
-    .otherwise { state := sAr }
+    when(io.mem.req.bits.write) { state := sAw }.otherwise { state := sAr }
   }
 
   // —— 写通道 ——
-  io.axi.aw.valid := state === sAw
+  io.axi.aw.valid     := state === sAw
   io.axi.aw.bits.addr := Mux(isLine, lineAddr, rAddr)
   when(state === sAw && io.axi.aw.ready) { state := sW }
 
-  io.axi.w.valid      := state === sW
-  io.axi.w.bits.data  := Mux(isLine, wBeatData, wData64)
-  io.axi.w.bits.strb  := Mux(isLine, Fill(beatBytes, 1.U), wStrb64)
-  io.axi.w.bits.last  := beatCnt === (beats - 1.U)
+  io.axi.w.valid     := state === sW
+  io.axi.w.bits.data := Mux(isLine, wBeatData, wData64)
+  io.axi.w.bits.strb := Mux(isLine, Fill(beatBytes, 1.U), wStrb64)
+  io.axi.w.bits.last := beatCnt === (beats - 1.U)
   when(state === sW && io.axi.w.ready) {
-    when(beatCnt === (beats - 1.U)) { state := sB }
-    .otherwise { beatCnt := beatCnt + 1.U }
+    when(beatCnt === (beats - 1.U)) { state := sB }.otherwise { beatCnt := beatCnt + 1.U }
   }
 
   io.axi.b.ready := state === sB
   when(state === sB && io.axi.b.valid) { state := sResp }
 
   // —— 读通道 ——
-  io.axi.ar.valid := state === sAr
+  io.axi.ar.valid     := state === sAr
   io.axi.ar.bits.addr := Mux(isLine, lineAddr, rAddr)
   when(state === sAr && io.axi.ar.ready) { state := sR }
 
@@ -113,8 +111,7 @@ class AXI4Adapter extends Module {
       val wd = io.axi.r.bits.data(31, 0)
       rAcc := Cat(0.U((lineBits - 32).W), wd)
     }
-    when(beatCnt === (beats - 1.U)) { state := sResp }
-    .otherwise { beatCnt := beatCnt + 1.U }
+    when(beatCnt === (beats - 1.U)) { state := sResp }.otherwise { beatCnt := beatCnt + 1.U }
   }
 
   when(state === sResp && io.mem.resp.ready) { state := sIdle }

@@ -67,7 +67,7 @@ class LSU extends Module {
   val isSigned :: dataLen :: Nil = ListLookup(ioLSU.memCtrl.asUInt, LSUCtrl.defaultList, LSUCtrl.table)
 
   val sIdle :: sRead :: sWrite :: sDone :: Nil = Enum(4)
-  val state = RegInit(sIdle)
+  val state                                    = RegInit(sIdle)
 
   val ctrlReg = RegInit(mem.NOP)
   val addrReg = RegInit(0.U(AW.W))
@@ -108,20 +108,31 @@ class LSU extends Module {
   }
 
   // 原子操作编码（下沉到缓存）
-  val amoOp = Mux(curCtrl === mem.LR, AmoOp.LR, Mux(curCtrl === mem.SC, AmoOp.SC, MuxCase(AmoOp.NOP, Seq(
-    (curCtrl === mem.AMOSWAP) -> AmoOp.SWAP,
-    (curCtrl === mem.AMOADD)  -> AmoOp.ADD,
-    (curCtrl === mem.AMOXOR)  -> AmoOp.XOR,
-    (curCtrl === mem.AMOAND)  -> AmoOp.AND,
-    (curCtrl === mem.AMOOR)   -> AmoOp.OR,
-    (curCtrl === mem.AMOMIN)  -> AmoOp.MIN,
-    (curCtrl === mem.AMOMAX)  -> AmoOp.MAX,
-    (curCtrl === mem.AMOMINU) -> AmoOp.MINU,
-    (curCtrl === mem.AMOMAXU) -> AmoOp.MAXU
-  ))))
+  val amoOp = Mux(
+    curCtrl === mem.LR,
+    AmoOp.LR,
+    Mux(
+      curCtrl === mem.SC,
+      AmoOp.SC,
+      MuxCase(
+        AmoOp.NOP,
+        Seq(
+          (curCtrl === mem.AMOSWAP) -> AmoOp.SWAP,
+          (curCtrl === mem.AMOADD)  -> AmoOp.ADD,
+          (curCtrl === mem.AMOXOR)  -> AmoOp.XOR,
+          (curCtrl === mem.AMOAND)  -> AmoOp.AND,
+          (curCtrl === mem.AMOOR)   -> AmoOp.OR,
+          (curCtrl === mem.AMOMIN)  -> AmoOp.MIN,
+          (curCtrl === mem.AMOMAX)  -> AmoOp.MAX,
+          (curCtrl === mem.AMOMINU) -> AmoOp.MINU,
+          (curCtrl === mem.AMOMAXU) -> AmoOp.MAXU
+        )
+      )
+    )
+  )
 
   // MemPort 请求映射
-  val memSize = Mux(curLen === LSUCtrl.len.B, MemSize.B, Mux(curLen === LSUCtrl.len.H, MemSize.H, MemSize.W))
+  val memSize  = Mux(curLen === LSUCtrl.len.B, MemSize.B, Mux(curLen === LSUCtrl.len.H, MemSize.H, MemSize.W))
   val memWstrb = Mux(curLen === LSUCtrl.len.B, "b0001".U(4.W), Mux(curLen === LSUCtrl.len.H, "b0011".U(4.W), "b1111".U(4.W)))
 
   // 单 outstanding 内存事务
@@ -137,19 +148,16 @@ class LSU extends Module {
   ioMemPort.req.bits.wstrb := memWstrb
   ioMemPort.req.bits.amoOp := amoOp
   when(ioMemPort.req.fire) { memBusy := true.B }
-  ioMemPort.resp.ready := memBusy
+  ioMemPort.resp.ready     := memBusy
 
   // load 符号/零扩展
-  val byteSE = Cat(Fill(24, oldReg(7)), oldReg(7, 0))
-  val halfSE = Cat(Fill(16, oldReg(15)), oldReg(15, 0))
-  val byteZE = Cat(0.U(24.W), oldReg(7, 0))
-  val halfZE = Cat(0.U(16.W), oldReg(15, 0))
-  val isB    = curLen === LSUCtrl.len.B
-  val isH    = curLen === LSUCtrl.len.H
-  val loadData = Mux(curSign,
-    Mux(isB, byteSE, Mux(isH, halfSE, oldReg)),
-    Mux(isB, byteZE, Mux(isH, halfZE, oldReg))
-  )
+  val byteSE   = Cat(Fill(24, oldReg(7)), oldReg(7, 0))
+  val halfSE   = Cat(Fill(16, oldReg(15)), oldReg(15, 0))
+  val byteZE   = Cat(0.U(24.W), oldReg(7, 0))
+  val halfZE   = Cat(0.U(16.W), oldReg(15, 0))
+  val isB      = curLen === LSUCtrl.len.B
+  val isH      = curLen === LSUCtrl.len.H
+  val loadData = Mux(curSign, Mux(isB, byteSE, Mux(isH, halfSE, oldReg)), Mux(isB, byteZE, Mux(isH, halfZE, oldReg)))
   val isLoadOp = isLoad
 
   ioLSU.dataOut := Mux(isLoadOp, loadData, oldReg)
@@ -165,7 +173,7 @@ class LSU extends Module {
     lenReg  := dataLen
     signReg := isSigned.asBool
     when(isLoad || isLR) { state := sRead }
-    .elsewhen(isStore || isSC || isAMO) { state := sWrite }
+      .elsewhen(isStore || isSC || isAMO) { state := sWrite }
   }.elsewhen(ioMemPort.resp.fire) {
     memBusy := false.B
     oldReg  := ioMemPort.resp.bits.rdata(Config.Data.XLEN - 1, 0)

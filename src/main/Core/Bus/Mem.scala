@@ -32,11 +32,11 @@ object MemSize {
 // 统一访存请求：取指/load/store/AMO/行填充/行写回/MMIO 直通 全部共用这一种请求
 class MemReqBundle extends Bundle {
   val addr  = UInt(Config.Addr.Width.W)
-  val write = Bool()                                // false=读 true=写
-  val size  = UInt(2.W)                             // MemSize.*
-  val wdata = UInt(Config.Cache.LineBits.W)         // 统一行宽；字/字节/半字用低 32 位
-  val wstrb = UInt((Config.Cache.LineBits / 8).W)   // 统一字节使能；字/字节/半字用低 4 位
-  val amoOp = UInt(4.W)                             // AmoOp.*
+  val write = Bool()                              // false=读 true=写
+  val size  = UInt(2.W)                           // MemSize.*
+  val wdata = UInt(Config.Cache.LineBits.W)       // 统一行宽；字/字节/半字用低 32 位
+  val wstrb = UInt((Config.Cache.LineBits / 8).W) // 统一字节使能；字/字节/半字用低 4 位
+  val amoOp = UInt(4.W)                           // AmoOp.*
 }
 
 // 统一访存响应：行访问 rdata 全 256 位；字/字节/半字 rdata(31,0) 为右对齐结果

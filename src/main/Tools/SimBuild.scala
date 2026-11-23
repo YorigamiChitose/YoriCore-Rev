@@ -8,8 +8,8 @@ object SimBuild extends App {
       "locationInfoStyle=none"
     ).reduce(_ + "," + _)
   )
-  val firtoolNormalOptions = Array("--disable-all-randomization")
-  val firtoolOptions       = firtoolNormalOptions ++ firtoolLoweringOptions
+  val firtoolNormalOptions   = Array("--disable-all-randomization")
+  val firtoolOptions         = firtoolNormalOptions ++ firtoolLoweringOptions
 
   println("firtool options:")
   firtoolOptions.foreach(opt => println("\t" + opt))

@@ -8,7 +8,7 @@ import Core.Config.Config
 // 提交观测黑盒（对应 resources/SimCommit.sv，DPI sim_commit）。
 class SimCommit extends BlackBox {
   override def desiredName = "SimCommit"
-  val io = IO(new Bundle {
+  val io                   = IO(new Bundle {
     val clock    = Input(Clock())
     val reset    = Input(Reset())
     val valid    = Input(Bool())

@@ -57,14 +57,14 @@ object CSR_MAP {
 }
 
 class CsrFile extends Module {
-  val ioCSRIDU = IO(new CSRIDUBundle())
-  val ioCSRWBU = IO(new CSRWBUBundle())
+  val ioCSRIDU  = IO(new CSRIDUBundle())
+  val ioCSRWBU  = IO(new CSRWBUBundle())
   // 仿真观测输出：Sim.Enable=false 时全部不存在
-  val ioPriv   = if (Config.Sim.Enable) Some(IO(Output(UInt(2.W)))) else None
-  val ioMepc   = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
-  val ioMcause = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
-  val ioMstatus= if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
-  val ioMtvec  = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioPriv    = if (Config.Sim.Enable) Some(IO(Output(UInt(2.W)))) else None
+  val ioMepc    = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioMcause  = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioMstatus = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioMtvec   = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
 
   val dataOut    = WireDefault(0.U(Config.Csr.DataWidth.W))
   val dataIn     = WireDefault(0.U(Config.Csr.DataWidth.W))

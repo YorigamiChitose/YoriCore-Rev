@@ -91,8 +91,8 @@ class IFU extends Module {
     Cat(Fill(Config.Inst.HalfWidth, 0.U), lowHalf),
     Mux(ioPCU.pc(1), Cat(bufB(Config.Inst.HalfWidth - 1, 0), bufA(Config.Inst.Width - 1, Config.Inst.HalfWidth)), bufA)
   )
-  val pcInc = Mux(isComp, (Config.Inst.HalfWidth / 8).U(Config.Addr.Width.W), (Config.Inst.Width / 8).U(Config.Addr.Width.W))
-  val ready = ioValid && haveA && (!crossing || haveB)
+  val pcInc  = Mux(isComp, (Config.Inst.HalfWidth / 8).U(Config.Addr.Width.W), (Config.Inst.Width / 8).U(Config.Addr.Width.W))
+  val ready  = ioValid && haveA && (!crossing || haveB)
 
   ioIFU.pc    := ioPCU.pc
   ioIFU.inst  := inst32
