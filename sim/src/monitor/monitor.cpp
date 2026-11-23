@@ -1,6 +1,7 @@
 #include "monitor/monitor.h"
 #include "debug.h"
 #include "difftest/difftest.h"
+#include "cpu/commit.h"
 #include "isa/isa.h"
 #include "macro.h"
 #include "memory/memory.h"
@@ -83,6 +84,7 @@ void init_monitor(int argc, char *argv[]) {
 
   long img_size = load_img();
   init_verilator();
+  perf_reset();
 
 #ifdef CONFIG_DIFFTEST
 #ifdef CONFIG_DIFFTEST_DEFAULT_ON

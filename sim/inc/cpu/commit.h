@@ -22,6 +22,21 @@ struct CommitEvent {
   uint8_t mem_size; // 0=B,1=H,2=W
 };
 
+struct PerfState {
+  uint64_t cycles;
+  uint64_t instret;
+  uint64_t i_hit;
+  uint64_t i_miss;
+  uint64_t d_hit;
+  uint64_t d_miss;
+  uint64_t fence;
+  uint64_t fence_i;
+  uint64_t wfi;
+};
+
+extern PerfState g_perf;
+void perf_reset(void);
+
 void commit_enqueue(const CommitEvent &e);
 bool commit_dequeue(CommitEvent &e);
 

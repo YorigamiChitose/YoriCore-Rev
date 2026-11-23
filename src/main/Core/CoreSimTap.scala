@@ -29,6 +29,13 @@ class CoreSimTapBundle extends Bundle {
     val memSize  = Output(UInt(2.W)) // MemSize.B/H/W
   }
 
+  val perf = new Bundle {
+    val iHit  = Output(Bool())
+    val iMiss = Output(Bool())
+    val dHit  = Output(Bool())
+    val dMiss = Output(Bool())
+  }
+
   // CsrFile 的实际状态（由 SimCsr 黑盒镜像给 C++）
   val csr = new Bundle {
     val mepc    = Output(UInt(Config.Csr.DataWidth.W))

@@ -43,6 +43,16 @@ class SimTop extends Module {
     commit.io.memWdata := tap.commit.memWdata
     commit.io.memSize  := tap.commit.memSize
 
+    val perf = Module(new SimPerf)
+    perf.io.clock := clock
+    perf.io.reset := reset
+    perf.io.valid := tap.commit.valid
+    perf.io.inst  := tap.commit.inst
+    perf.io.iHit  := tap.perf.iHit
+    perf.io.iMiss := tap.perf.iMiss
+    perf.io.dHit  := tap.perf.dHit
+    perf.io.dMiss := tap.perf.dMiss
+
     val csr = Module(new SimCsr)
     csr.io.clock   := clock
     csr.io.reset   := reset

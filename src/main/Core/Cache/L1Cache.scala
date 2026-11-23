@@ -28,6 +28,9 @@ class L1Cache extends Module {
     val fenceDone = Output(Bool())       // 排空完成脉冲
   })
 
+  val perfHit  = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
+  val perfMiss = if (Config.Sim.Enable) Some(IO(Output(Bool()))) else None
+
   val lineBits = Config.Cache.LineBits
   val xlen     = Config.Data.XLEN
 
@@ -173,6 +176,9 @@ class L1Cache extends Module {
   io.cpu.req.ready := Mux(uncached, io.mem.req.ready, (state === sIdle) && !draining && !io.hold)
   val reqFire   = io.cpu.req.valid && io.cpu.req.ready && cacheable
   val needEvict = !hit && dirty(victim)(index)
+
+  perfHit.foreach(_ := reqFire && hit)
+  perfMiss.foreach(_ := reqFire && !hit)
 
   // PLRU 更新（命中路径）
   when(state === sIdle && reqFire && hit) {

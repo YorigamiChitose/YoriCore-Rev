@@ -119,6 +119,11 @@ class Core extends Module {
     s.commit.memWdata := WBU.ioEXU.memWdata
     s.commit.memSize  := WBU.ioEXU.memSize
 
+    s.perf.iHit  := iCache.perfHit.get
+    s.perf.iMiss := iCache.perfMiss.get
+    s.perf.dHit  := dCache.perfHit.get
+    s.perf.dMiss := dCache.perfMiss.get
+
     s.csr.mepc    := csrFile.ioMepc.get
     s.csr.mcause  := csrFile.ioMcause.get
     s.csr.mstatus := csrFile.ioMstatus.get

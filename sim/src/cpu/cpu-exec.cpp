@@ -119,6 +119,10 @@ static void exec_once(void) {
   }
 }
 
+static double perf_ratio(uint64_t a, uint64_t b) {
+  return b == 0 ? 0.0 : (double)a / (double)b;
+}
+
 void statistic(void) {
   Log("host time spent = %llu us", (unsigned long long)g_timer);
   Log("total guest instructions = %llu", (unsigned long long)g_nr_guest_inst);
@@ -126,6 +130,23 @@ void statistic(void) {
     Log("simulation frequency = %llu inst/s", (unsigned long long)(g_nr_guest_inst * 1000000 / g_timer));
   else
     Log("finish running in less than 1 us");
+
+  Log("perf: cycles = %llu, instret = %llu, IPC = %.3f",
+      (unsigned long long)g_perf.cycles,
+      (unsigned long long)g_perf.instret,
+      perf_ratio(g_perf.instret, g_perf.cycles));
+  Log("perf: I$ hit = %llu, miss = %llu, hit rate = %.3f",
+      (unsigned long long)g_perf.i_hit,
+      (unsigned long long)g_perf.i_miss,
+      perf_ratio(g_perf.i_hit, g_perf.i_hit + g_perf.i_miss));
+  Log("perf: D$ hit = %llu, miss = %llu, hit rate = %.3f",
+      (unsigned long long)g_perf.d_hit,
+      (unsigned long long)g_perf.d_miss,
+      perf_ratio(g_perf.d_hit, g_perf.d_hit + g_perf.d_miss));
+  Log("perf: fence = %llu, fence.i = %llu, wfi = %llu",
+      (unsigned long long)g_perf.fence,
+      (unsigned long long)g_perf.fence_i,
+      (unsigned long long)g_perf.wfi);
 }
 
 void assert_fail_msg(void) { statistic(); }
