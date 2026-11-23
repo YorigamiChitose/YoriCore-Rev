@@ -122,7 +122,7 @@ class CsrFile extends Module {
       mod          := MSTATUS.MPP
       MSTATUS.MIE  := MSTATUS.MPIE
       MSTATUS.MPIE := 1.U
-      MSTATUS.MPP  := 0.U
+      MSTATUS.MPP  := "b11".U
     }
     is(exc.FENCE_I) {
       // TODO: FENCE_I
