@@ -51,7 +51,7 @@ object Config {
     val Devices: Seq[(Long, Long)] = Seq(
       (0x0200_B000L, 0x1000L),     // RTC（只读 64 位微秒，ysyx 约定）
       (0x1000_0000L, 0x1000L),     // UART (ns16550)，预留 4KB
-      (0xF000_0000L, 0x1000_0000L) // halt 及其它 MMIO（覆盖到 0xFFFFFFFF）
+      (0xF000_0000L, 0x1000L)      // halt（单字节写，4KB 即可）
     )
   }
 

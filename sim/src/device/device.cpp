@@ -54,7 +54,7 @@ struct DeviceRegion {
 static const DeviceRegion kDevices[] = {
   { (uint32_t)CONFIG_RTC_ADDR,    0x1000,     rtc_read,  rtc_write  }, // RTC
   { (uint32_t)CONFIG_SERIAL_PORT, 0x1000,     uart_read, uart_write }, // UART
-  { (uint32_t)CONFIG_HALT_ADDR,   0x10000000, halt_read, halt_write }, // halt 及其它 MMIO
+  { (uint32_t)CONFIG_HALT_ADDR,   0x1000,     halt_read, halt_write }, // halt（单字节写，4KB 即可）
 };
 static const int kDeviceCount = sizeof(kDevices) / sizeof(kDevices[0]);
 
