@@ -79,7 +79,7 @@ object CExpander {
 
     // C.ADDI4SPN: f3=000, nzuimm[9:2] = {[10:7],[12:11],[5],[6]}
     val nzA      = Cat(i(10, 7), i(12, 11), i(5), i(6)) // nzuimm[9:2]
-    val addi4spn = iType(Cat(0.U(2.W), nzA), X2, F_ADD, rdA, OP_IMM)
+    val addi4spn = iType(Cat(0.U(2.W), nzA, 0.U(2.W)), X2, F_ADD, rdA, OP_IMM)
 
     // C.LW: f3=010, uimm[6:2] = {[5],[12:10],[6]}
     val uimmCL = Cat(i(5), i(12, 10), i(6)) // uimm[6:2]
@@ -97,36 +97,36 @@ object CExpander {
 
     // C.JAL: f3=001 (RV32), offset[11:0] 重组
     val jalSign = b12
-    val jal10_1 = Cat(i(8), i(10), i(9), i(7), i(6), i(2), i(11), i(5), i(4), i(3))
+    val jal10_1 = Cat(i(8), i(10), i(9), i(6), i(7), i(2), i(11), i(5), i(4), i(3))
     val c_jal   = jType(jalSign, jal10_1, jalSign, Fill(8, jalSign), X1, JAL)
 
     // C.LI: f3=010
     val c_li = iType(Cat(Fill(6, b12), imm6), X0, F_ADD, r5, OP_IMM)
 
     // C.ADDI16SP / C.LUI: f3=011
-    val nzAddi16     = Cat(b12, i(4, 3), i(5), i(6), i(2)) // nzuimm[9:4]
+    val nzAddi16     = Cat(b12, i(4, 3), i(5), i(2), i(6))
     val c_addi16sp   = iType(Cat(Fill(2, b12), nzAddi16, 0.U(4.W)), X2, F_ADD, X2, OP_IMM)
     val lui_imm17_12 = Cat(b12, r5b)
     val c_lui        = uType(Cat(Fill(14, b12), lui_imm17_12), r5, LUI)
 
     // C.SRLI/C.SRAI/C.ANDI (f3=100, [11:10]=00/01/10), 压缩寄存器
-    val c_srli = iType(Cat("b000000".U(6.W), shamt6), rdA, F_SR, rdA, OP_IMM)
-    val c_srai = iType(Cat("b010000".U(6.W), shamt6), rdA, F_SR, rdA, OP_IMM)
-    val c_andi = iType(Cat(Fill(6, b12), imm6), rdA, F_ANDI, rdA, OP_IMM)
+    val c_srli = iType(Cat("b000000".U(6.W), shamt6), rsA, F_SR, rsA, OP_IMM)
+    val c_srai = iType(Cat("b010000".U(6.W), shamt6), rsA, F_SR, rsA, OP_IMM)
+    val c_andi = iType(Cat(Fill(6, b12), imm6), rsA, F_ANDI, rsA, OP_IMM)
 
     // C.SUB/XOR/OR/AND (f3=100, [12:10]=011, [6:5]=funct2), 压缩寄存器
-    val c_sub = rType(F7_20, rdA, rdA, F_SUB, rdA, OP)
-    val c_xor = rType(F7_0, rdA, rdA, F_XOR, rdA, OP)
-    val c_or  = rType(F7_0, rdA, rdA, F_OR, rdA, OP)
-    val c_and = rType(F7_0, rdA, rdA, F_AND, rdA, OP)
+    val c_sub = rType(F7_20, rdA, rsA, F_SUB, rsA, OP)
+    val c_xor = rType(F7_0, rdA, rsA, F_XOR, rsA, OP)
+    val c_or  = rType(F7_0, rdA, rsA, F_OR, rsA, OP)
+    val c_and = rType(F7_0, rdA, rsA, F_AND, rsA, OP)
 
     // C.J: f3=101, offset 重组 (jal x0)
     val c_j = jType(jalSign, jal10_1, jalSign, Fill(8, jalSign), X0, JAL)
 
     // C.BEQZ/C.BNEZ: f3=110/111, offset[8:0] = {[12],[6],[5],[2],[11],[10],[4],[3],0}
     val bd12   = b12
-    val bd10_5 = Cat(b12, b12, i(6), i(5), i(2), i(11))
-    val bd4_1  = Cat(i(10), i(4), i(3), 0.U(1.W))
+    val bd10_5 = Cat(b12, b12, b12, i(6), i(5), i(2))
+    val bd4_1  = Cat(i(11), i(10), i(4), i(3))
     val c_beqz = bType(bd12, bd10_5, X0, rsA, F_BEQ, bd4_1, b12, BR)
     val c_bnez = bType(bd12, bd10_5, X0, rsA, F_BNE, bd4_1, b12, BR)
 
@@ -167,10 +167,9 @@ object CExpander {
         (op === "b01".U && f3 === "b010".U)                                                  -> c_li,
         (op === "b01".U && f3 === "b011".U && r5 === 2.U)                                    -> c_addi16sp,
         (op === "b01".U && f3 === "b011".U && r5 =/= 2.U)                                    -> c_lui,
-        // C.ALU: f3=100, 由 [11:10] 与 [6:5] 细分
-        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b00".U && i(6, 5) === "b00".U)  -> c_srli,
-        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b01".U && i(6, 5) === "b00".U)  -> c_srai,
-        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b10".U && i(6, 5) === "b00".U)  -> c_andi,
+        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b00".U)                         -> c_srli,
+        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b01".U)                         -> c_srai,
+        (op === "b01".U && f3 === "b100".U && i(11, 10) === "b10".U)                         -> c_andi,
         (op === "b01".U && f3 === "b100".U && i(12, 10) === "b011".U && i(6, 5) === "b00".U) -> c_sub,
         (op === "b01".U && f3 === "b100".U && i(12, 10) === "b011".U && i(6, 5) === "b01".U) -> c_xor,
         (op === "b01".U && f3 === "b100".U && i(12, 10) === "b011".U && i(6, 5) === "b10".U) -> c_or,
