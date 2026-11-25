@@ -8,7 +8,6 @@ import Core.Reg.module._
 import Core.IDU.module._
 import Core.Device.CoreIrq
 
-// TODO: 完善M级 完成S级 U级
 
 class BundleMEPC extends Bundle {
   val pc      = UInt(Config.Csr.DataWidth.W)
@@ -260,7 +259,6 @@ class CsrFile extends Module {
       MSTATUS.MPP  := "b00".U
     }
     is(exc.FENCE_I) {
-      // TODO: FENCE_I
     }
     is(exc.SRET) {
       mod          := MSTATUS.SPP
@@ -269,13 +267,10 @@ class CsrFile extends Module {
       MSTATUS.SPP  := 0.U
     }
     is(exc.FENCE) {
-      // TODO: FENCE
     }
     is(exc.SFENCE_VMA) {
-      // TODO: SFENCE_VMA
     }
     is(exc.WFI) {
-      // TODO: WFI
     }
   }
 

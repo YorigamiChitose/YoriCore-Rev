@@ -9,6 +9,7 @@
 !/Kconfig
 !/defconfig
 !/resources/
+!/docs/
 !/sim/
 sim/inc/autoconf/autoconf.h
 *.vcd

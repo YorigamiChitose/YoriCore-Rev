@@ -132,7 +132,6 @@ class L1Cache extends Module {
     r.dirty    := (write && !isAmo) || (isSc && scOk) || (isAmo && !isLr && !isSc)
     r.resp     := Mux(isSc, Mux(scOk, 0.U(xlen.W), 1.U(xlen.W)), Mux(isAmo, oldW, readLine(line, widx, boW, size)))
     r.resSet   := isLr
-    // TODO: 当前为对齐 Spike 仅由 SC 清 reservation；同 hart store/AMO 的失效策略待多 hart/严格模型时重新评估。
     r.resClear := isSc
     r.resAddr  := addr
     r

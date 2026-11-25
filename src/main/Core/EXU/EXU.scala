@@ -129,7 +129,7 @@ class EXU extends Module {
       (ioIDU.divCtrl =/= div.NOP)       -> DIVReady,
       (ioIDU.memCtrl =/= mem.NOP)       -> LSUReady,
       (ioIDU.mulCtrl =/= mul.NOP)       -> MULReady,
-      (ioIDU.excType === exc.EBREAK)    -> true.B, // for npc
+      (ioIDU.excType === exc.EBREAK)    -> true.B,
       (ioIDU.excType === exc.ILLEGAL_INST) -> true.B,
       (ioIDU.excType === exc.FENCE)     -> true.B,
       (ioIDU.excType === exc.WFI)       -> true.B,
