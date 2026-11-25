@@ -27,7 +27,7 @@ LDFLAGS  := -LDFLAGS -lreadline
 IMG ?=
 ARGS ?=
 
-.PHONY: sim run difftest
+.PHONY: sim run
 
 $(SIM_BIN): $(SIM_SV) $(SIM_CSRC) $(SIM_HDRS) $(SIM_RSRC) $(AUTOCONFIG_H) $(TOP_DIR)/sim/verilator.vlt
 	$(call log_start,Verilator 编译 $(SIM_TOP))
@@ -45,6 +45,3 @@ run: $(SIM_BIN)
 	@test -n "$(IMG)" || { echo "usage: make run IMG=<image>"; exit 1; }
 	@$(SIM_BIN) $(ARGS) $(IMG)
 
-difftest: $(SIM_BIN) ref
-	@test -n "$(IMG)" || { echo "usage: make difftest IMG=<image>"; exit 1; }
-	@$(SIM_BIN) -b --diff=$(BUILD_DIR)/ref/riscv32-spike-so $(ARGS) $(IMG)

@@ -59,6 +59,10 @@ object Config {
     val HaltBase = 0xf000_0000L
     val HaltSize = 0x1000L
 
+    val HaltCodeWidth = 31
+    val TimeWidth     = 64
+    val PlicSourceCount = 32
+
     val Regions: Seq[(Long, Long)] = Seq(
       (SysconBase, SysconSize),
       (ClintBase, ClintSize),

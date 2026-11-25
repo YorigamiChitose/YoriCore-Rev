@@ -10,7 +10,7 @@ class PlicIrq extends Bundle {
   val ctx1 = Bool()
 }
 
-class Plic(val numSources: Int = 32, val dataWidth: Int = Config.Bus.AxiDataWidth) extends Module {
+class Plic(val numSources: Int = Config.Device.PlicSourceCount, val dataWidth: Int = Config.Bus.AxiDataWidth) extends Module {
   require(numSources > 1 && numSources <= 32)
 
   val io = IO(new Bundle {
@@ -20,6 +20,7 @@ class Plic(val numSources: Int = 32, val dataWidth: Int = Config.Bus.AxiDataWidt
   })
 
   val pending   = RegInit(0.U(numSources.W))
+  val claimed   = RegInit(0.U(numSources.W))
   val priority  = RegInit(VecInit(Seq.fill(numSources)(0.U(32.W))))
   val enable    = RegInit(VecInit(Seq.fill(2)(0.U(numSources.W))))
   val threshold = RegInit(VecInit(Seq.fill(2)(0.U(32.W))))
@@ -65,7 +66,7 @@ class Plic(val numSources: Int = 32, val dataWidth: Int = Config.Bus.AxiDataWidt
   io.bus.resp.bits.rdata := rdata
   io.bus.resp.bits.err   := rerr
 
-  pending := pending | (io.sources & ~1.U(numSources.W))
+  pending := (pending | (io.sources & ~1.U(numSources.W))) & ~claimed
 
   when(io.bus.req.fire) {
     busy  := true.B
@@ -79,11 +80,17 @@ class Plic(val numSources: Int = 32, val dataWidth: Int = Config.Bus.AxiDataWidt
     when(thHit1) { rdata := Cat(0.U(32.W), threshold(1)) }
     when(claimHit0) {
       rdata := Cat(0.U(32.W), best0)
-      pending := pending & ~(1.U(numSources.W) << best0)
+      when(!io.bus.req.bits.write && best0 =/= 0.U) {
+        pending := pending & ~(1.U(numSources.W) << best0)
+        claimed := claimed | (1.U(numSources.W) << best0)
+      }
     }
     when(claimHit1) {
       rdata := Cat(0.U(32.W), best1)
-      pending := pending & ~(1.U(numSources.W) << best1)
+      when(!io.bus.req.bits.write && best1 =/= 0.U) {
+        pending := pending & ~(1.U(numSources.W) << best1)
+        claimed := claimed | (1.U(numSources.W) << best1)
+      }
     }
     when(io.bus.req.bits.write) {
       when(prioHit && srcIdx < numSources.U) { priority(srcIdx) := io.bus.req.bits.wdata(31, 0) }
@@ -91,8 +98,12 @@ class Plic(val numSources: Int = 32, val dataWidth: Int = Config.Bus.AxiDataWidt
       when(enHit1) { enable(1) := io.bus.req.bits.wdata(numSources - 1, 0) }
       when(thHit0) { threshold(0) := io.bus.req.bits.wdata(31, 0) }
       when(thHit1) { threshold(1) := io.bus.req.bits.wdata(31, 0) }
-      when(claimHit0 && io.bus.req.bits.wdata(31, 0) =/= 0.U) { pending := pending }
-      when(claimHit1 && io.bus.req.bits.wdata(31, 0) =/= 0.U) { pending := pending }
+      when(claimHit0 && io.bus.req.bits.wdata(31, 0) =/= 0.U) {
+        claimed := claimed & ~(1.U(numSources.W) << io.bus.req.bits.wdata(4, 0))
+      }
+      when(claimHit1 && io.bus.req.bits.wdata(31, 0) =/= 0.U) {
+        claimed := claimed & ~(1.U(numSources.W) << io.bus.req.bits.wdata(4, 0))
+      }
     }
   }
 

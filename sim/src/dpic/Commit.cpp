@@ -1,7 +1,8 @@
 #include "cpu/commit.h"
 
-PerfState g_perf = {};
+#include <deque>
 
+PerfState g_perf = {};
 void perf_reset(void) { g_perf = {}; }
 
 static uint64_t join_u64(int lo, int hi) {

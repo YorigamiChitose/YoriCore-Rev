@@ -8,7 +8,7 @@ import Core.Config.Config
 class Rtc(val dataWidth: Int = Config.Bus.AxiDataWidth) extends Module {
   val io = IO(new Bundle {
     val bus  = Flipped(new DeviceBus(dataWidth))
-    val time = Input(UInt(64.W))
+    val time = Input(UInt(Config.Device.TimeWidth.W))
   })
 
   val pending = RegInit(false.B)

@@ -21,6 +21,7 @@ class Top extends Module {
 
   val interconnect     = Module(new AXI4Interconnect(deviceRegions))
   val deviceController = Module(new DeviceController(deviceRegions))
+  val irqSourceMap = Module(new IrqSourceMap)
   val syscon = Module(new Syscon)
   val clint  = Module(new Clint)
   val rtc    = Module(new Rtc)
@@ -50,8 +51,11 @@ class Top extends Module {
   val ioRtcTime = IO(Input(UInt(64.W)))
   rtc.io.time := ioRtcTime
 
-  val ioPlicSources = IO(Input(UInt(32.W)))
-  plic.io.sources := ioPlicSources | (clint.io.irq.msi << 1) | (uart.io.irq << 2)
+  val ioPlicSources = IO(Input(UInt(Config.Device.PlicSourceCount.W)))
+  irqSourceMap.io.external := ioPlicSources
+  irqSourceMap.io.clintMsi := clint.io.irq.msi
+  irqSourceMap.io.uartIrq  := uart.io.irq
+  plic.io.sources := irqSourceMap.io.sources
   val ioPlicIrq = IO(Output(new PlicIrq))
   ioPlicIrq := plic.io.irq
 

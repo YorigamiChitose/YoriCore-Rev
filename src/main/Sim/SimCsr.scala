@@ -16,5 +16,12 @@ class SimCsr extends BlackBox {
     val mstatus = Input(UInt(Config.Csr.DataWidth.W))
     val mtvec   = Input(UInt(Config.Csr.DataWidth.W))
     val priv    = Input(UInt(2.W))
+    val sepc    = Input(UInt(Config.Csr.DataWidth.W))
+    val scause  = Input(UInt(Config.Csr.DataWidth.W))
+    val stvec   = Input(UInt(Config.Csr.DataWidth.W))
+    val sie     = Input(UInt(Config.Csr.DataWidth.W))
+    val sip     = Input(UInt(Config.Csr.DataWidth.W))
+    val sstatus = Input(UInt(Config.Csr.DataWidth.W))
+    val satp    = Input(UInt(Config.Csr.DataWidth.W))
   })
 }

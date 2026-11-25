@@ -147,5 +147,12 @@ class Core extends Module {
     s.obsCsr.mstatus := csrFile.ioMstatus.get
     s.obsCsr.mtvec   := csrFile.ioMtvec.get
     s.obsCsr.priv    := csrFile.ioPriv.get
+    s.obsCsr.sepc    := csrFile.ioSepc.get
+    s.obsCsr.scause  := csrFile.ioScause.get
+    s.obsCsr.stvec   := csrFile.ioStvec.get
+    s.obsCsr.sie     := csrFile.ioSie.get
+    s.obsCsr.sip     := csrFile.ioSip.get
+    s.obsCsr.sstatus := csrFile.ioSstatus.get
+    s.obsCsr.satp    := csrFile.ioSatp.get
   }
 }

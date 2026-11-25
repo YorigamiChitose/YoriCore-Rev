@@ -42,6 +42,13 @@ class CoreSimTapBundle extends Bundle {
     val mcause  = Output(UInt(Config.Csr.DataWidth.W))
     val mstatus = Output(UInt(Config.Csr.DataWidth.W))
     val mtvec   = Output(UInt(Config.Csr.DataWidth.W))
-    val priv    = Output(UInt(2.W))
+    val priv     = Output(UInt(2.W))
+    val sepc     = Output(UInt(Config.Csr.DataWidth.W))
+    val scause   = Output(UInt(Config.Csr.DataWidth.W))
+    val stvec    = Output(UInt(Config.Csr.DataWidth.W))
+    val sie      = Output(UInt(Config.Csr.DataWidth.W))
+    val sip      = Output(UInt(Config.Csr.DataWidth.W))
+    val sstatus  = Output(UInt(Config.Csr.DataWidth.W))
+    val satp     = Output(UInt(Config.Csr.DataWidth.W))
   }
 }

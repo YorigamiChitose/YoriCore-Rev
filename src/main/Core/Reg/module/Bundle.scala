@@ -34,6 +34,7 @@ class CSRIDUBundle extends Bundle {
     val addr = Input(UInt(Config.Csr.AddrWidth.W))
     val data    = Output(UInt(Config.Csr.DataWidth.W))
     val illegal = Output(Bool())
+    val write   = Input(Bool())
   }
   val preFlushPC = Output(UInt(Config.Csr.DataWidth.W))
   val excType    = Input(exc())

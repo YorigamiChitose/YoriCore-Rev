@@ -45,38 +45,3 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   printf("Reg name error, Please retry!\n");
   return 0;
 }
-
-bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
-  if (ref_r->pc != cpu.pc) {
-    Log("Different PC! REF: " FMT_WORD " DUT: " FMT_WORD, ref_r->pc, cpu.pc);
-    return false;
-  }
-  for (int i = 0; i < 32; i++) {
-    if (ref_r->gpr[i] != cpu.gpr[i]) {
-      Log("Different reg %s! REF: " FMT_WORD " DUT: " FMT_WORD, regs[i], ref_r->gpr[i], cpu.gpr[i]);
-      return false;
-    }
-  }
-  if (ref_r->csr.mepc != cpu.csr.mepc) {
-    Log("Different csr mepc! REF: " FMT_WORD " DUT: " FMT_WORD, ref_r->csr.mepc, cpu.csr.mepc);
-    return false;
-  }
-  if (ref_r->csr.mcause != cpu.csr.mcause) {
-    Log("Different csr mcause! REF: " FMT_WORD " DUT: " FMT_WORD, ref_r->csr.mcause, cpu.csr.mcause);
-    return false;
-  }
-  if (ref_r->csr.mstatus != cpu.csr.mstatus) {
-    Log("Different csr mstatus! REF: " FMT_WORD " DUT: " FMT_WORD, ref_r->csr.mstatus, cpu.csr.mstatus);
-    return false;
-  }
-  if (ref_r->csr.mtvec != cpu.csr.mtvec) {
-    Log("Different csr mtvec! REF: " FMT_WORD " DUT: " FMT_WORD, ref_r->csr.mtvec, cpu.csr.mtvec);
-    return false;
-  }
-  if (ref_r->mode != cpu.mode) {
-    Log("Different privilege mode! REF: %u DUT: %u", ref_r->mode, cpu.mode);
-    return false;
-  }
-  (void)pc;
-  return true;
-}

@@ -1,4 +1,4 @@
-// SimCommit：提交级观测（difftest 用黑盒）。
+// SimCommit：提交级观测。
 // 仅在 SimTop 中、且 Config.Sim.Enable 时实例化；Core/Top 不包含本模块。
 module SimCommit #(
   parameter integer ADDR_WIDTH = 32

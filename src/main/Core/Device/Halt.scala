@@ -7,7 +7,7 @@ import Core.Config.Config
 
 class HaltEvent extends Bundle {
   val valid = Bool()
-  val code  = UInt(31.W)
+  val code  = UInt(Config.Device.HaltCodeWidth.W)
 }
 
 class Halt(val dataWidth: Int = Config.Bus.AxiDataWidth) extends Module {
@@ -37,7 +37,7 @@ class Halt(val dataWidth: Int = Config.Bus.AxiDataWidth) extends Module {
     rerr    := !hit
     when(hit && wr) {
       io.halt.valid := true.B
-      io.halt.code  := io.bus.req.bits.wdata(62, 1)
+      io.halt.code  := io.bus.req.bits.wdata(Config.Device.HaltCodeWidth, 1)
     }
   }
 

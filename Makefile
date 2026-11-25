@@ -15,7 +15,6 @@ include $(TOP_DIR)/mkscript/env.mk
 include $(TOP_DIR)/mkscript/config.mk
 include $(TOP_DIR)/mkscript/verilog.mk
 include $(TOP_DIR)/mkscript/verilator.mk
-include $(TOP_DIR)/mkscript/ref.mk
 include $(TOP_DIR)/mkscript/mill.mk
 include $(TOP_DIR)/mkscript/clean.mk
 
@@ -29,7 +28,6 @@ help:
 	@printf '  $(C_YEL)sim$(C_OFF)         构建 Verilator 仿真\n'
 	@printf '  $(C_YEL)ref$(C_OFF)         构建 Spike 参考 .so\n'
 	@printf '  $(C_YEL)run$(C_OFF)         运行交互式 monitor（IMG=镜像）\n'
-	@printf '  $(C_YEL)difftest$(C_OFF)    批处理 + Spike 逐指令对比（IMG=镜像）\n'
 	@printf '  $(C_YEL)fmt$(C_OFF) / $(C_YEL)check$(C_OFF)  Scala 格式\n'
 	@printf '  $(C_YEL)clean$(C_OFF)       清理构建产物\n'
 

@@ -52,12 +52,13 @@ class IDU extends Module {
 
   val csrData    = Mux(ioIDUForwarding.csr.needPass, ioIDUForwarding.csr.data, ioCSRIDU.csr.data) // csr寄存器数据
   val csrAddr    = inst32(31, 20)                                                                 // csr寄存器地址
-  val csrWriteEn = csrCtrl =/= csr.NOP                                                            // csr寄存器写使能
   val csrReadEn  = csrCtrl =/= csr.NOP                                                            // csr寄存器读使能
 
   val rdAddr  = inst32(11, 7)  // 目的寄存器地址
   val rs1Addr = inst32(19, 15) // 源寄存器地址
   val rs2Addr = inst32(24, 20) // 源寄存器地址
+  val csrWriteEn = csrCtrl =/= csr.NOP &&
+    (csrCtrl === csr.RW || csrCtrl === csr.RWI || rs1Addr =/= 0.U)
 
   // 立即数扩展
   val immR     = 0.U(Config.Data.XLEN.W)
@@ -96,8 +97,9 @@ class IDU extends Module {
 
   // csr寄存器IO
   val finalExc = Mux(ioCSRIDU.csr.illegal, exc.ILLEGAL_INST, excType)
-  ioCSRIDU.csr.en   := csrReadEn // CSR使能
-  ioCSRIDU.csr.addr := csrAddr   // CSR地址
+  ioCSRIDU.csr.en    := csrReadEn // CSR使能
+  ioCSRIDU.csr.addr  := csrAddr   // CSR地址
+  ioCSRIDU.csr.write := csrWriteEn // CSR写操作
   ioCSRIDU.excType  := finalExc  // 异常类型
 
   // 前递IO

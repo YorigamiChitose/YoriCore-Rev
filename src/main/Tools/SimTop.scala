@@ -82,5 +82,12 @@ class SimTop extends Module {
     csr.io.mstatus := obsTap.obsCsr.mstatus
     csr.io.mtvec   := obsTap.obsCsr.mtvec
     csr.io.priv    := obsTap.obsCsr.priv
+    csr.io.sepc    := obsTap.obsCsr.sepc
+    csr.io.scause  := obsTap.obsCsr.scause
+    csr.io.stvec   := obsTap.obsCsr.stvec
+    csr.io.sie     := obsTap.obsCsr.sie
+    csr.io.sip     := obsTap.obsCsr.sip
+    csr.io.sstatus := obsTap.obsCsr.sstatus
+    csr.io.satp    := obsTap.obsCsr.satp
   }
 }

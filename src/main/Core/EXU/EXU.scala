@@ -184,7 +184,7 @@ class EXU extends Module {
   if (Config.Sim.Enable) ioEXU.obsNpc := commitNpc
   else ioEXU.obsNpc := DontCare
 
-  // 访存提交信息（纯旁路观测，供 difftest/提交流；Sim.Enable=false 时全部零宽）
+  // 访存提交信息（纯旁路观测，供提交流；Sim.Enable=false 时全部零宽）
   if (Config.Sim.Enable) {
     ioEXU.obsMemValid := LSU.ioLSU.obsAccess.valid
     ioEXU.obsMemWrite := LSU.ioLSU.obsAccess.write

@@ -86,6 +86,13 @@ class CsrFile extends Module {
   val ioMcause  = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
   val ioMstatus = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
   val ioMtvec   = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioSepc    = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioScause  = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioStvec   = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioSie     = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioSip     = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioSstatus = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
+  val ioSatp    = if (Config.Sim.Enable) Some(IO(Output(UInt(Config.Csr.DataWidth.W)))) else None
 
   val dataOut    = WireDefault(0.U(Config.Csr.DataWidth.W))
   val dataIn     = WireDefault(0.U(Config.Csr.DataWidth.W))
@@ -128,8 +135,9 @@ class CsrFile extends Module {
   )
   val ecallToS = mod =/= 3.U && MEDELEG(ecallCause(3, 0))
   val csrIllegal = ioCSRIDU.csr.en &&
-    ((mod =/= 3.U && ioCSRIDU.csr.addr(9, 8) === "b11".U) ||
-      (mod === 0.U && ioCSRIDU.csr.addr(9, 8) === "b01".U))
+    (((mod =/= 3.U && ioCSRIDU.csr.addr(9, 8) === "b11".U) ||
+      (mod === 0.U && ioCSRIDU.csr.addr(9, 8) === "b01".U)) ||
+      (ioCSRIDU.csr.write && ioCSRIDU.csr.addr(11, 10) === "b11".U))
   val illegalToS = mod =/= 3.U && MEDELEG(2)
   val irqToS   = mod =/= 3.U && MIDELEG(ioIrqCauseIn(3, 0))
 
@@ -144,7 +152,7 @@ class CsrFile extends Module {
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.MTVEC)   -> MTVEC.asUInt,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SSTATUS)  -> (MSTATUS.asUInt & SSTATUS_MASK),
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SIE)      -> SIE,
-      (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SIP)      -> MIP,
+      (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SIP)      -> (MIP & "h0000_0222".U),
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.STVEC)    -> STVEC.asUInt,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SSCRATCH) -> SSCRATCH,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SEPC)     -> SEPC.asUInt,
@@ -332,4 +340,11 @@ class CsrFile extends Module {
   ioMcause.foreach(_ := MCAUSE.asUInt)
   ioMstatus.foreach(_ := MSTATUS.asUInt)
   ioMtvec.foreach(_ := MTVEC.asUInt)
+  ioSepc.foreach(_ := SEPC.asUInt)
+  ioScause.foreach(_ := SCAUSE.asUInt)
+  ioStvec.foreach(_ := STVEC.asUInt)
+  ioSie.foreach(_ := SIE)
+  ioSip.foreach(_ := (MIP & "h0000_0222".U))
+  ioSstatus.foreach(_ := (MSTATUS.asUInt & SSTATUS_MASK))
+  ioSatp.foreach(_ := SATP)
 }
