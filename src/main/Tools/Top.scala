@@ -15,14 +15,9 @@ class Top extends Module {
   val core       = Module(new Core)
   val axiAdapter = Module(new AXI4Adapter)
 
-  val deviceRegions = Seq(
-    DeviceRegion(Config.Device.SysconBase, Config.Device.SysconSize),
-    DeviceRegion(Config.Device.ClintBase, Config.Device.ClintSize),
-    DeviceRegion(Config.Device.RtcBase, Config.Device.RtcSize),
-    DeviceRegion(Config.Device.UartBase, Config.Device.UartSize),
-    DeviceRegion(Config.Device.PlicBase, Config.Device.PlicSize),
-    DeviceRegion(Config.Device.HaltBase, Config.Device.HaltSize)
-  )
+  val deviceRegions = Config.Device.Regions.map { case (base, size) =>
+    DeviceRegion(base, size)
+  }
 
   val interconnect     = Module(new AXI4Interconnect(deviceRegions))
   val deviceController = Module(new DeviceController(deviceRegions))
@@ -72,6 +67,6 @@ class Top extends Module {
   val ioHalt = IO(Output(new HaltEvent))
   ioHalt := halt.io.halt
 
-  val simTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
-  simTap.foreach { s => s := core.simTap.get }
+  val obsTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
+  obsTap.foreach { s => s := core.obsTap.get }
 }

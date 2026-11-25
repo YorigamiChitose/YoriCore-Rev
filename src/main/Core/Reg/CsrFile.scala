@@ -108,7 +108,12 @@ class CsrFile extends Module {
   val MEDELEG = RegInit(0.U(Config.Csr.DataWidth.W))
   val MIDELEG = RegInit(0.U(Config.Csr.DataWidth.W))
 
-  val MIP = Cat(0.U(20.W), ioIrq.mei, 0.U(3.W), ioIrq.mti, 0.U(3.W), ioIrq.msi, 0.U(3.W))
+  val MIP = Cat(
+    0.U(20.W), ioIrq.mei, 0.U(1.W), ioIrq.mei, 0.U(1.W),
+    ioIrq.mti, 0.U(1.W), ioIrq.mti, 0.U(1.W),
+    ioIrq.msi, 0.U(1.W), ioIrq.msi, 0.U(1.W)
+  )
+  val SSTATUS_MASK = "h0006_0122".U(Config.Csr.DataWidth.W)
   val timerIrq = MIE(7) && ioIrq.mti && MSTATUS.MIE(0)
   val softIrq  = MIE(3) && ioIrq.msi && MSTATUS.MIE(0)
   val extIrq   = MIE(11) && ioIrq.mei && MSTATUS.MIE(0)
@@ -137,7 +142,7 @@ class CsrFile extends Module {
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.MIE)     -> MIE,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.MIP)     -> MIP,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.MTVEC)   -> MTVEC.asUInt,
-      (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SSTATUS)  -> MSTATUS.asUInt,
+      (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SSTATUS)  -> (MSTATUS.asUInt & SSTATUS_MASK),
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SIE)      -> SIE,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.SIP)      -> MIP,
       (ioCSRIDU.csr.en && ioCSRIDU.csr.addr === CSR_MAP.STVEC)    -> STVEC.asUInt,
@@ -171,7 +176,7 @@ class CsrFile extends Module {
         MTVEC := dataIn.asTypeOf(MTVEC)
       }
       is(CSR_MAP.SSTATUS) {
-        MSTATUS := dataIn.asTypeOf(MSTATUS)
+        MSTATUS := ((MSTATUS.asUInt & ~SSTATUS_MASK) | (dataIn & SSTATUS_MASK)).asTypeOf(MSTATUS)
       }
       is(CSR_MAP.SIE) {
         SIE := dataIn

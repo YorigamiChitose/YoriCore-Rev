@@ -117,35 +117,35 @@ class Core extends Module {
   dCache.io.hold  := false.B
 
   // 仿真可观测 tap（总开关 Config.Sim.Enable）
-  val simTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
-  simTap.foreach { s =>
-    s.commit.valid    := WBU.ioValid
-    s.commit.pc       := WBU.ioEXU.pc
-    s.commit.npc      := WBU.ioEXU.npc
-    s.commit.inst     := WBU.ioEXU.inst
-    s.commit.priv     := csrFile.ioPriv.get
-    s.commit.excType  := WBU.ioEXU.excType
-    s.commit.rdEn     := WBU.ioEXU.rdEn
-    s.commit.rdAddr   := WBU.ioEXU.rdAddr
-    s.commit.rdData   := WBU.ioEXU.EXUResult
-    s.commit.csrEn    := WBU.ioEXU.csrWriteEn
-    s.commit.csrAddr  := WBU.ioEXU.csrAddr
-    s.commit.csrData  := WBU.ioEXU.csrResult
-    s.commit.memValid := WBU.ioEXU.memValid.asBool
-    s.commit.memWrite := WBU.ioEXU.memWrite.asBool
-    s.commit.memAddr  := WBU.ioEXU.memAddr
-    s.commit.memWdata := WBU.ioEXU.memWdata
-    s.commit.memSize  := WBU.ioEXU.memSize
+  val obsTap = if (Config.Sim.Enable) Some(IO(new CoreSimTapBundle)) else None
+  obsTap.foreach { s =>
+    s.obsCommit.valid    := WBU.ioValid
+    s.obsCommit.pc       := WBU.ioEXU.pc
+    s.obsCommit.npc      := WBU.ioEXU.obsNpc
+    s.obsCommit.inst     := WBU.ioEXU.obsInst
+    s.obsCommit.priv     := csrFile.ioPriv.get
+    s.obsCommit.excType  := WBU.ioEXU.excType
+    s.obsCommit.rdEn     := WBU.ioEXU.rdEn
+    s.obsCommit.rdAddr   := WBU.ioEXU.rdAddr
+    s.obsCommit.rdData   := WBU.ioEXU.EXUResult
+    s.obsCommit.csrEn    := WBU.ioEXU.csrWriteEn
+    s.obsCommit.csrAddr  := WBU.ioEXU.csrAddr
+    s.obsCommit.csrData  := WBU.ioEXU.csrResult
+    s.obsCommit.memValid := WBU.ioEXU.obsMemValid.asBool
+    s.obsCommit.memWrite := WBU.ioEXU.obsMemWrite.asBool
+    s.obsCommit.memAddr  := WBU.ioEXU.obsMemAddr
+    s.obsCommit.memWdata := WBU.ioEXU.obsMemWdata
+    s.obsCommit.memSize  := WBU.ioEXU.obsMemSize
 
-    s.perf.iHit  := iCache.perfHit.get
-    s.perf.iMiss := iCache.perfMiss.get
-    s.perf.dHit  := dCache.perfHit.get
-    s.perf.dMiss := dCache.perfMiss.get
+    s.obsPerf.iHit  := iCache.obsHit.get
+    s.obsPerf.iMiss := iCache.obsMiss.get
+    s.obsPerf.dHit  := dCache.obsHit.get
+    s.obsPerf.dMiss := dCache.obsMiss.get
 
-    s.csr.mepc    := csrFile.ioMepc.get
-    s.csr.mcause  := csrFile.ioMcause.get
-    s.csr.mstatus := csrFile.ioMstatus.get
-    s.csr.mtvec   := csrFile.ioMtvec.get
-    s.csr.priv    := csrFile.ioPriv.get
+    s.obsCsr.mepc    := csrFile.ioMepc.get
+    s.obsCsr.mcause  := csrFile.ioMcause.get
+    s.obsCsr.mstatus := csrFile.ioMstatus.get
+    s.obsCsr.mtvec   := csrFile.ioMtvec.get
+    s.obsCsr.priv    := csrFile.ioPriv.get
   }
 }

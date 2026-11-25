@@ -41,46 +41,46 @@ class SimTop extends Module {
   simHalt.io.halt  := core.ioHalt
 
   if (Config.Sim.Enable) {
-    val tap = core.simTap.get
+    val obsTap = core.obsTap.get
 
     val commit = Module(new SimCommit)
     commit.io.clock    := clock
     commit.io.reset    := reset
-    commit.io.valid    := tap.commit.valid
-    commit.io.pc       := tap.commit.pc
-    commit.io.npc      := tap.commit.npc
-    commit.io.inst     := tap.commit.inst
-    commit.io.priv     := tap.commit.priv
-    commit.io.exc      := tap.commit.excType.asUInt
-    commit.io.rdEn     := tap.commit.rdEn && (tap.commit.rdAddr =/= 0.U)
-    commit.io.rdAddr   := tap.commit.rdAddr
-    commit.io.rdData   := tap.commit.rdData
-    commit.io.csrEn    := tap.commit.csrEn
-    commit.io.csrAddr  := tap.commit.csrAddr
-    commit.io.csrData  := tap.commit.csrData
-    commit.io.memValid := tap.commit.memValid
-    commit.io.memWrite := tap.commit.memWrite
-    commit.io.memAddr  := tap.commit.memAddr
-    commit.io.memWdata := tap.commit.memWdata
-    commit.io.memSize  := tap.commit.memSize
+    commit.io.valid    := obsTap.obsCommit.valid
+    commit.io.pc       := obsTap.obsCommit.pc
+    commit.io.npc      := obsTap.obsCommit.npc
+    commit.io.inst     := obsTap.obsCommit.inst
+    commit.io.priv     := obsTap.obsCommit.priv
+    commit.io.exc      := obsTap.obsCommit.excType.asUInt
+    commit.io.rdEn     := obsTap.obsCommit.rdEn && (obsTap.obsCommit.rdAddr =/= 0.U)
+    commit.io.rdAddr   := obsTap.obsCommit.rdAddr
+    commit.io.rdData   := obsTap.obsCommit.rdData
+    commit.io.csrEn    := obsTap.obsCommit.csrEn
+    commit.io.csrAddr  := obsTap.obsCommit.csrAddr
+    commit.io.csrData  := obsTap.obsCommit.csrData
+    commit.io.memValid := obsTap.obsCommit.memValid
+    commit.io.memWrite := obsTap.obsCommit.memWrite
+    commit.io.memAddr  := obsTap.obsCommit.memAddr
+    commit.io.memWdata := obsTap.obsCommit.memWdata
+    commit.io.memSize  := obsTap.obsCommit.memSize
 
     val perf = Module(new SimPerf)
     perf.io.clock := clock
     perf.io.reset := reset
-    perf.io.valid := tap.commit.valid
-    perf.io.inst  := tap.commit.inst
-    perf.io.iHit  := tap.perf.iHit
-    perf.io.iMiss := tap.perf.iMiss
-    perf.io.dHit  := tap.perf.dHit
-    perf.io.dMiss := tap.perf.dMiss
+    perf.io.valid := obsTap.obsCommit.valid
+    perf.io.inst  := obsTap.obsCommit.inst
+    perf.io.iHit  := obsTap.obsPerf.iHit
+    perf.io.iMiss := obsTap.obsPerf.iMiss
+    perf.io.dHit  := obsTap.obsPerf.dHit
+    perf.io.dMiss := obsTap.obsPerf.dMiss
 
     val csr = Module(new SimCsr)
     csr.io.clock   := clock
     csr.io.reset   := reset
-    csr.io.mepc    := tap.csr.mepc
-    csr.io.mcause  := tap.csr.mcause
-    csr.io.mstatus := tap.csr.mstatus
-    csr.io.mtvec   := tap.csr.mtvec
-    csr.io.priv    := tap.csr.priv
+    csr.io.mepc    := obsTap.obsCsr.mepc
+    csr.io.mcause  := obsTap.obsCsr.mcause
+    csr.io.mstatus := obsTap.obsCsr.mstatus
+    csr.io.mtvec   := obsTap.obsCsr.mtvec
+    csr.io.priv    := obsTap.obsCsr.priv
   }
 }

@@ -114,8 +114,8 @@ class IDU extends Module {
 
   // IDU IO
   ioIDU.pc                          := ioIFU.pc                                                                  // PC值
-  if (Config.Sim.Enable) ioIDU.inst := ioIFU.inst                                                                // 原始指令（旁路观测）
-  else ioIDU.inst                   := DontCare
+  if (Config.Sim.Enable) ioIDU.obsInst := ioIFU.inst                                                                // 原始指令（旁路观测）
+  else ioIDU.obsInst                := DontCare
   ioIDU.rdEn                        := rdEn                                                                      // 目的寄存器使能
   ioIDU.rdAddr                      := rdAddr                                                                    // 目的寄存器地址
   ioIDU.rs1Data                     := rs1Data                                                                   // 源寄存器1数据

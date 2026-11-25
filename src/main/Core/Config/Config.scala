@@ -58,18 +58,14 @@ object Config {
     val UartSize = 0x1000L
     val HaltBase = 0xf000_0000L
     val HaltSize = 0x1000L
-  }
 
-  object Mmio {
-    // 不可缓存（直通）设备区间：Seq[(起始地址, 大小字节)]
-    // 与 Tools.Top.deviceRegions 保持一致（单一契约）
-    val Devices: Seq[(Long, Long)] = Seq(
-      (0x0010_0000L, 0x1000L), // SYSCON
-      (0x0200_0000L, 0xc000L), // CLINT
-      (0x0010_1000L, 0x1000L), // RTC（只读 64 位微秒，ysyx 约定）
-      (0x0c00_0000L, 0x0040_0000L), // PLIC
-      (0x1000_0000L, 0x1000L), // UART (ns16550)，预留 4KB
-      (0xf000_0000L, 0x1000L)  // halt（单字节写，4KB 即可）
+    val Regions: Seq[(Long, Long)] = Seq(
+      (SysconBase, SysconSize),
+      (ClintBase, ClintSize),
+      (RtcBase, RtcSize),
+      (UartBase, UartSize),
+      (PlicBase, PlicSize),
+      (HaltBase, HaltSize)
     )
   }
 
@@ -86,7 +82,7 @@ object Config {
 
     // 是否落在任一 MMIO 设备区间（显式检查每个设备，非空安全）
     def isMmio(addr: UInt): Bool =
-      Mmio.Devices.foldLeft(false.B) { case (acc, (base, size)) =>
+      Device.Regions.foldLeft(false.B) { case (acc, (base, size)) =>
         acc || inRange(addr, base, size)
       }
 

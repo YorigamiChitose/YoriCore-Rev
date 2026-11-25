@@ -18,7 +18,7 @@ class EXUCtrlBundle extends Bundle {
 
 class EXUStageBundle extends StageBundle {
   val pc         = Output(UInt(Config.Addr.Width.W))             // PC值
-  val inst       = Output(Config.Sim.obsUInt(Config.Inst.Width)) // 原始指令（纯旁路观测）
+  val obsInst    = Output(Config.Sim.obsUInt(Config.Inst.Width)) // 原始指令（纯旁路观测）
   val rdEn       = Output(Bool())                                // 目的寄存器使能
   val rdAddr     = Output(UInt(Config.Reg.NumWidth.W))           // 目的寄存器地址
   val csrResult  = Output(UInt(Config.Csr.DataWidth.W))          // csr结果
@@ -28,13 +28,13 @@ class EXUStageBundle extends StageBundle {
   val rs2Data    = Output(UInt(Config.Reg.Width.W))              // rs2寄存器数据
   val excType    = Output(exc())                                 // 异常类型
   val EXUResult  = Output(UInt(Config.Data.XLEN.W))              // EXU结果
-  val npc        = Output(Config.Sim.obsUInt(Config.Addr.Width)) // 架构下一 PC（纯旁路观测）
+  val obsNpc     = Output(Config.Sim.obsUInt(Config.Addr.Width)) // 架构下一 PC（纯旁路观测）
   // 访存提交信息（纯旁路观测；Sim.Enable=false 时为零宽、被优化掉）
-  val memValid   = Output(Config.Sim.obsUInt(1))
-  val memWrite   = Output(Config.Sim.obsUInt(1))
-  val memAddr    = Output(Config.Sim.obsUInt(Config.Addr.Width))
-  val memWdata   = Output(Config.Sim.obsUInt(Config.Data.XLEN))
-  val memSize    = Output(Config.Sim.obsUInt(2))                 // MemSize.B/H/W
+  val obsMemValid   = Output(Config.Sim.obsUInt(1))
+  val obsMemWrite   = Output(Config.Sim.obsUInt(1))
+  val obsMemAddr    = Output(Config.Sim.obsUInt(Config.Addr.Width))
+  val obsMemWdata   = Output(Config.Sim.obsUInt(Config.Data.XLEN))
+  val obsMemSize    = Output(Config.Sim.obsUInt(2))                 // MemSize.B/H/W
 }
 
 class DMemBundle extends Bundle {

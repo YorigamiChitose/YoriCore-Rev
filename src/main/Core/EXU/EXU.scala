@@ -161,8 +161,8 @@ class EXU extends Module {
 
   // EXU IO
   ioEXU.pc                          := ioIDU.pc         // PC值
-  if (Config.Sim.Enable) ioEXU.inst := ioIDU.inst       // 原始指令（纯旁路观测）
-  else ioEXU.inst                   := DontCare
+  if (Config.Sim.Enable) ioEXU.obsInst := ioIDU.obsInst       // 原始指令（纯旁路观测）
+  else ioEXU.obsInst                   := DontCare
   ioEXU.rdEn                        := ioIDU.rdEn       // 目的寄存器使能
   ioEXU.rdAddr                      := ioIDU.rdAddr     // 目的寄存器地址
   ioEXU.csrResult                   := CSRResult        // csr计算结果 存入CSR
@@ -181,21 +181,21 @@ class EXU extends Module {
       (isTrap || isFenceI) -> ioIDU.preFlushPC
     )
   )
-  if (Config.Sim.Enable) ioEXU.npc := commitNpc
-  else ioEXU.npc := DontCare
+  if (Config.Sim.Enable) ioEXU.obsNpc := commitNpc
+  else ioEXU.obsNpc := DontCare
 
   // 访存提交信息（纯旁路观测，供 difftest/提交流；Sim.Enable=false 时全部零宽）
   if (Config.Sim.Enable) {
-    ioEXU.memValid := LSU.ioLSU.access.valid
-    ioEXU.memWrite := LSU.ioLSU.access.write
-    ioEXU.memAddr  := LSU.ioLSU.access.addr
-    ioEXU.memWdata := LSU.ioLSU.access.wdata
-    ioEXU.memSize  := LSU.ioLSU.access.size
+    ioEXU.obsMemValid := LSU.ioLSU.obsAccess.valid
+    ioEXU.obsMemWrite := LSU.ioLSU.obsAccess.write
+    ioEXU.obsMemAddr  := LSU.ioLSU.obsAccess.addr
+    ioEXU.obsMemWdata := LSU.ioLSU.obsAccess.wdata
+    ioEXU.obsMemSize  := LSU.ioLSU.obsAccess.size
   } else {
-    ioEXU.memValid := DontCare
-    ioEXU.memWrite := DontCare
-    ioEXU.memAddr  := DontCare
-    ioEXU.memWdata := DontCare
-    ioEXU.memSize  := DontCare
+    ioEXU.obsMemValid := DontCare
+    ioEXU.obsMemWrite := DontCare
+    ioEXU.obsMemAddr  := DontCare
+    ioEXU.obsMemWdata := DontCare
+    ioEXU.obsMemSize  := DontCare
   }
 }

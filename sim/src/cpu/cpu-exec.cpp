@@ -41,12 +41,11 @@ static bool handle_halt(const CommitEvent &c) {
 }
 
 static bool is_rtl_mmio(uint32_t addr) {
-  bool uart = addr >= (uint32_t)CONFIG_SERIAL_PORT && addr < (uint32_t)CONFIG_SERIAL_PORT + 0x1000u;
-  bool rtc  = addr >= (uint32_t)CONFIG_RTC_ADDR && addr < (uint32_t)CONFIG_RTC_ADDR + 0x1000u;
-  bool syscon = addr >= 0x00100000u && addr < 0x00101000u;
-  bool clint  = addr >= 0x02000000u && addr < 0x0200c000u;
-  bool plic   = addr >= 0x0c000000u && addr < 0x0c400000u;
-  return uart || rtc || syscon || clint || plic;
+  return (addr >= (uint32_t)CONFIG_SYSCON_ADDR && addr < (uint32_t)CONFIG_SYSCON_ADDR + 0x1000u) ||
+         (addr >= (uint32_t)CONFIG_CLINT_ADDR && addr < (uint32_t)CONFIG_CLINT_ADDR + 0xc000u) ||
+         (addr >= (uint32_t)CONFIG_PLIC_ADDR && addr < (uint32_t)CONFIG_PLIC_ADDR + 0x400000u) ||
+         (addr >= (uint32_t)CONFIG_RTC_ADDR && addr < (uint32_t)CONFIG_RTC_ADDR + 0x1000u) ||
+         (addr >= (uint32_t)CONFIG_SERIAL_PORT && addr < (uint32_t)CONFIG_SERIAL_PORT + 0x1000u);
 }
 
 static bool difftest_skip_inst(uint32_t inst) {

@@ -13,7 +13,7 @@ class IDUCtrlBundle extends Bundle {
 
 class IDUStageBundle extends StageBundle {
   val pc         = Output(UInt(Config.Addr.Width.W))             // PC值
-  val inst       = Output(Config.Sim.obsUInt(Config.Inst.Width)) // 原始指令（纯旁路观测，压缩指令在低 16 位）
+  val obsInst    = Output(Config.Sim.obsUInt(Config.Inst.Width)) // 原始指令（纯旁路观测，压缩指令在低 16 位）
   val rdEn       = Output(Bool())                                // 目的寄存器使能
   val rdAddr     = Output(UInt(Config.Reg.NumWidth.W))           // 目的寄存器地址
   val rs1Data    = Output(UInt(Config.Reg.Width.W))              // 源寄存器1数据

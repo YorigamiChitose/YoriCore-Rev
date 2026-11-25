@@ -26,6 +26,18 @@ endmenu
 
 
 menu "Devices"
+config SYSCON_ADDR
+  hex "SYSCON MMIO base address"
+  default 0x00100000
+
+config CLINT_ADDR
+  hex "CLINT MMIO base address"
+  default 0x02000000
+
+config PLIC_ADDR
+  hex "PLIC MMIO base address"
+  default 0x0C000000
+
 config RTC_ADDR
   hex "RTC MMIO base address"
   default 0x00101000

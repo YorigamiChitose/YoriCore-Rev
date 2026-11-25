@@ -9,7 +9,7 @@ import Core.IDU.module._
 // 仿真可观测 tap：仅提交信息 + 实际 CSR 状态。
 // 仅当 Config.Sim.Enable 时由 Core/Top/SimTop 实例化；关闭时完全消除。
 class CoreSimTapBundle extends Bundle {
-  val commit = new Bundle {
+  val obsCommit = new Bundle {
     val valid    = Output(Bool())
     val pc       = Output(UInt(Config.Addr.Width.W))
     val npc      = Output(UInt(Config.Addr.Width.W))
@@ -29,7 +29,7 @@ class CoreSimTapBundle extends Bundle {
     val memSize  = Output(UInt(2.W)) // MemSize.B/H/W
   }
 
-  val perf = new Bundle {
+  val obsPerf = new Bundle {
     val iHit  = Output(Bool())
     val iMiss = Output(Bool())
     val dHit  = Output(Bool())
@@ -37,7 +37,7 @@ class CoreSimTapBundle extends Bundle {
   }
 
   // CsrFile 的实际状态（由 SimCsr 黑盒镜像给 C++）
-  val csr = new Bundle {
+  val obsCsr = new Bundle {
     val mepc    = Output(UInt(Config.Csr.DataWidth.W))
     val mcause  = Output(UInt(Config.Csr.DataWidth.W))
     val mstatus = Output(UInt(Config.Csr.DataWidth.W))
