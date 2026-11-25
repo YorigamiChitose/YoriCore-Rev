@@ -95,9 +95,10 @@ class IDU extends Module {
   ioRegIDU.rs2.addr := rs2Addr // 地址
 
   // csr寄存器IO
+  val finalExc = Mux(ioCSRIDU.csr.illegal, exc.ILLEGAL_INST, excType)
   ioCSRIDU.csr.en   := csrReadEn // CSR使能
   ioCSRIDU.csr.addr := csrAddr   // CSR地址
-  ioCSRIDU.excType  := excType   // 异常类型
+  ioCSRIDU.excType  := finalExc  // 异常类型
 
   // 前递IO
   ioIDUForwarding.rs1.en   := rs1En     // 使能
@@ -131,7 +132,7 @@ class IDU extends Module {
   ioIDU.branchCtrl                  := branchCtrl                                                                // 分支控制信号
   ioIDU.memCtrl                     := memCtrl                                                                   // 访存控制信号
   ioIDU.csrCtrl                     := csrCtrl                                                                   // csr控制信号
-  ioIDU.excType                     := excType                                                                   // exc类型
-  ioIDU.preFlushPC                  := Mux(excType === exc.FENCE_I, ioIFU.pc + ioIFU.pcInc, ioCSRIDU.preFlushPC) // 预冲刷地址（fence.i 指向下一条）
+  ioIDU.excType                     := finalExc                                                                   // exc类型
+  ioIDU.preFlushPC                  := Mux(finalExc === exc.FENCE_I, ioIFU.pc + ioIFU.pcInc, ioCSRIDU.preFlushPC) // 预冲刷地址（fence.i 指向下一条）
   ioIDU.pcInc                       := ioIFU.pcInc                                                               // 指令长度（2/4）
 }

@@ -92,7 +92,7 @@ __EXPORT void difftest_init(int port) {
 
   static cfg_t cfg;
   cfg.isa = "RV32IMAC";
-  cfg.priv = "M";
+  cfg.priv = "MSU";
   cfg.mem_layout = {mem_cfg_t(CONFIG_MBASE, CONFIG_MSIZE)};
   cfg.hartids = {0};
   cfg.explicit_hartids = true;

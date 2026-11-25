@@ -4,7 +4,6 @@
 #include "difftest/difftest.h"
 #include "isa/isa.h"
 #include "macro.h"
-#include "device/device.h"
 #include "memory/memory.h"
 #include "utils.h"
 #include "verilator/verilator.h"
@@ -34,43 +33,20 @@ static void apply_commit(const CommitEvent &c) {
   cpu.gpr[0] = 0;
 }
 
-// 处理 1-byte halt/tohost 设备访问；返回 true 表示该访存已由设备处理。
+// HALT 由 RTL 设备完成；提交级只负责跳过参考模型对比。
 static bool handle_halt(const CommitEvent &c) {
   if (!(c.mem_valid && c.mem_addr == (uint32_t)CONFIG_HALT_ADDR)) return false;
-
-  if (halt_access_error() || c.mem_size != 0) {
-    Log("halt device access must be exactly 1 byte (pc=" FMT_WORD ", size=%u)",
-        c.pc, c.mem_size);
-    set_npc_state(NPC_ABORT, c.pc, -1);
-    return true;
-  }
-
-  if (!c.mem_write) {
-    // 1-byte 读：MMIO，跳过 ref 对比
-    difftest_skip_ref();
-    return true;
-  }
-
-  uint8_t v = (uint8_t)(c.mem_wdata & 0xff);
-  if (v == 0) { // no-op
-    difftest_skip_ref();
-    return true;
-  }
-  if (v & 1) {
-    int code = v >> 1;
-    if (code == 0) {
-      printf(ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) " at pc = " FMT_WORD "\n", c.pc);
-      set_npc_state(NPC_END, c.pc, 0);
-    } else {
-      printf(ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED) " (code=%d) at pc = " FMT_WORD "\n", code, c.pc);
-      set_npc_state(NPC_END, c.pc, code);
-    }
-    return true;
-  }
-
-  printf(ANSI_FMT("INVALID HALT COMMAND", ANSI_FG_RED) " value=0x%02x at pc = " FMT_WORD "\n", v, c.pc);
-  set_npc_state(NPC_ABORT, c.pc, -1);
+  difftest_skip_ref();
   return true;
+}
+
+static bool is_rtl_mmio(uint32_t addr) {
+  bool uart = addr >= (uint32_t)CONFIG_SERIAL_PORT && addr < (uint32_t)CONFIG_SERIAL_PORT + 0x1000u;
+  bool rtc  = addr >= (uint32_t)CONFIG_RTC_ADDR && addr < (uint32_t)CONFIG_RTC_ADDR + 0x1000u;
+  bool syscon = addr >= 0x00100000u && addr < 0x00101000u;
+  bool clint  = addr >= 0x02000000u && addr < 0x0200c000u;
+  bool plic   = addr >= 0x0c000000u && addr < 0x0c400000u;
+  return uart || rtc || syscon || clint || plic;
 }
 
 static bool difftest_skip_inst(uint32_t inst) {
@@ -92,7 +68,9 @@ static bool drain_commits(void) {
     if (npc_state.state != NPC_RUNNING) return true;
     if (handled) continue;
 
-    if (c.mem_valid && device_is_mmio(c.mem_addr)) {
+    if ((cpu.csr.mcause & 0x80000000u) && c.pc == cpu.csr.mtvec) {
+      difftest_skip_ref();
+    } else if (c.mem_valid && is_rtl_mmio(c.mem_addr)) {
       difftest_skip_ref();
     } else if (difftest_skip_inst(c.inst)) {
       difftest_skip_ref();

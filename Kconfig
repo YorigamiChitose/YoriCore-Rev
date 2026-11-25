@@ -28,7 +28,7 @@ endmenu
 menu "Devices"
 config RTC_ADDR
   hex "RTC MMIO base address"
-  default 0x0200B000
+  default 0x00101000
 
 config SERIAL_PORT
   hex "UART MMIO base address"

@@ -23,6 +23,19 @@ class PipeLineCtrl extends Module {
   val ioEX_WBPipeCtrl = IO(Flipped(new PipeRegCtrlBundle())) // EX_WB级间寄存器控制信号
   val ioWBUCtrl       = IO(Flipped(new WBUCtrlBundle))       // WBU流水控制信号
 
+  val ioPC_IFValid  = IO(Input(Bool()))
+  val ioIF_IDValid  = IO(Input(Bool()))
+  val ioID_EXValid  = IO(Input(Bool()))
+  val ioEX_WBValid  = IO(Input(Bool()))
+  val ioIrqPending  = IO(Input(Bool()))
+  val ioIrqCause    = IO(Input(UInt(Config.Csr.DataWidth.W)))
+  val ioIrqTrapPC   = IO(Input(UInt(Config.Csr.DataWidth.W)))
+  val ioPcuPc       = IO(Input(UInt(Config.Addr.Width.W)))
+  val ioWBUValid    = IO(Input(Bool()))
+  val ioIrqTake     = IO(Output(Bool()))
+  val ioIrqMepc     = IO(Output(UInt(Config.Csr.DataWidth.W)))
+  val ioIrqCauseOut = IO(Output(UInt(Config.Csr.DataWidth.W)))
+
   val stallCode = WireDefault("b00000".U(5.W)) // 暂停码
   val flushCode = WireDefault("b00000".U(5.W)) // 冲刷码
 
@@ -34,7 +47,12 @@ class PipeLineCtrl extends Module {
   val busyIFU = ioIFUCtrl.busy // IFU忙信号
   val busyEXU = ioEXUCtrl.busy // EXU忙信号
 
-  val flushPC = MuxCase(
+  val sIrqIdle :: sIrqPcu :: sIrqIfu :: sIrqIdu :: sIrqExu :: sIrqWbu :: sIrqTake :: sIrqFlush :: Nil = Enum(8)
+  val irqState = RegInit(sIrqIdle)
+  val irqMepcReg = RegInit(0.U(Config.Csr.DataWidth.W))
+  val irqCauseReg = RegInit(0.U(Config.Csr.DataWidth.W))
+
+  val normalFlushPC = MuxCase(
     0.U(Config.Addr.Width.W),
     Seq(
       keepWBUFlushReq    -> keepWBUFlushPC,
@@ -43,6 +61,9 @@ class PipeLineCtrl extends Module {
       ioEXUCtrl.flushReq -> ioEXUCtrl.flushPC
     )
   ) // 跳转PC
+
+  val irqFlush = irqState === sIrqFlush
+  val flushPC = Mux(irqFlush, ioIrqTrapPC, normalFlushPC)
 
   when((busyEXU || busyIFU) && ioWBUCtrl.flushReq && !keepWBUFlushReq) { // IFU EXU busy - WBU flushReq
     keepWBUFlushReq := ioWBUCtrl.flushReq
@@ -87,6 +108,55 @@ class PipeLineCtrl extends Module {
       ioIFUCtrl.stallReq -> "b00000".U(5.W)
     )
   )
+
+  when(irqState =/= sIrqIdle) {
+    stallCode := MuxCase(
+      "b11110".U(5.W),
+      Seq(
+        (irqState === sIrqPcu) -> "b10000".U(5.W),
+        (irqState === sIrqIfu) -> "b11000".U(5.W),
+        (irqState === sIrqIdu) -> "b11100".U(5.W),
+        (irqState === sIrqExu) -> "b11100".U(5.W)
+      )
+    )
+    flushCode := Mux(irqState === sIrqFlush, "b11110".U(5.W), "b00000".U(5.W))
+  }
+
+  ioIrqTake     := irqState === sIrqTake
+  ioIrqMepc     := irqMepcReg
+  ioIrqCauseOut := irqCauseReg
+
+  when(irqState === sIrqIdle) {
+    when(ioIrqPending) {
+      irqState    := sIrqPcu
+      irqMepcReg  := ioPcuPc
+      irqCauseReg := ioIrqCause
+    }
+  }.otherwise {
+    switch(irqState) {
+      is(sIrqPcu) {
+        when(!ioPC_IFValid) { irqState := sIrqIfu }
+      }
+      is(sIrqIfu) {
+        when(!ioIF_IDValid) { irqState := sIrqIdu }
+      }
+      is(sIrqIdu) {
+        when(!ioID_EXValid) { irqState := sIrqExu }
+      }
+      is(sIrqExu) {
+        when(!ioEX_WBValid) { irqState := sIrqWbu }
+      }
+      is(sIrqWbu) {
+        when(!ioWBUValid) { irqState := sIrqTake }
+      }
+      is(sIrqTake) {
+        irqState := sIrqFlush
+      }
+      is(sIrqFlush) {
+        irqState := sIrqIdle
+      }
+    }
+  }
 
   ioPCUCtrl.flushPC := flushPC // PC值
 

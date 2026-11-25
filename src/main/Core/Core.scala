@@ -19,6 +19,7 @@ import Core.Reg._
 import Core.Reg.module._
 import Core.Bus._
 import Core.Cache._
+import Core.Device.CoreIrq
 import Core.Config.Config
 
 class Core extends Module {
@@ -37,6 +38,8 @@ class Core extends Module {
 
   val pipeLineCtrl = Module(new PipeLineCtrl) // 流水控制
   val forwording   = Module(new Forwarding)   // 前递寄存器
+
+  val ioIrq = IO(Input(new CoreIrq))
 
   pipeLineCtrl.ioPCUCtrl <> PCU.ioCtrl // PCU - 流水控制器
   pipeLineCtrl.ioIFUCtrl <> IFU.ioCtrl // IFU - 流水控制器
@@ -69,6 +72,21 @@ class Core extends Module {
 
   WBU.ioRegWBU <> regFile.ioRegWBU // WBU - 通用寄存器 数据通路
   WBU.ioCSRWBU <> csrFile.ioCSRWBU // WBU - csr寄存器 数据通路
+
+  csrFile.ioIrq := ioIrq
+  pipeLineCtrl.ioPC_IFValid := PC_IF.ioValid
+  pipeLineCtrl.ioIF_IDValid := IF_ID.ioValid
+  pipeLineCtrl.ioID_EXValid := ID_EX.ioValid
+  pipeLineCtrl.ioEX_WBValid := EX_WB.ioValid
+  pipeLineCtrl.ioIrqPending := csrFile.ioIrqPending
+  pipeLineCtrl.ioIrqCause   := csrFile.ioIrqCause
+  pipeLineCtrl.ioIrqTrapPC  := csrFile.ioIrqTrapPC
+  pipeLineCtrl.ioPcuPc      := PCU.ioPCU.pc
+  pipeLineCtrl.ioWBUValid   := WBU.ioValid
+  csrFile.ioIrqTake         := pipeLineCtrl.ioIrqTake
+  csrFile.ioIrqMepc         := pipeLineCtrl.ioIrqMepc
+  csrFile.ioIrqCauseIn      := pipeLineCtrl.ioIrqCauseOut
+
 
   forwording.ioPCU <> PCU.ioPCUForwarding // PCU - 前递 数据通路
   forwording.ioIFU <> IFU.ioIFUForwarding // IFU - 前递 数据通路

@@ -1,0 +1,14 @@
+package Sim
+
+import chisel3._
+
+import Core.Device.HaltEvent
+
+class SimHalt extends BlackBox {
+  override def desiredName = "SimHalt"
+  val io = IO(new Bundle {
+    val clock = Input(Clock())
+    val reset = Input(Reset())
+    val halt  = Input(new HaltEvent)
+  })
+}

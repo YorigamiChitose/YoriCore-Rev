@@ -107,7 +107,7 @@ class EXU extends Module {
   // Pipe控制
   // 陷阱类指令：冲刷到CSR给出的地址，同时需提交到WBU完成状态更新
   val isFenceI = ioIDU.excType === exc.FENCE_I
-  val isTrap   = (ioIDU.excType === exc.ECALL) || (ioIDU.excType === exc.MRET) || (ioIDU.excType === exc.SRET)
+  val isTrap   = (ioIDU.excType === exc.ECALL) || (ioIDU.excType === exc.MRET) || (ioIDU.excType === exc.SRET) || (ioIDU.excType === exc.ILLEGAL_INST)
   ioCtrl.stallReq   := ((ioIDU.mulCtrl =/= mul.NOP) && !MULReady) ||
     ((ioIDU.divCtrl =/= div.NOP) && !DIVReady) ||
     (ioIDU.memCtrl =/= mem.NOP) && !LSUReady
@@ -130,6 +130,7 @@ class EXU extends Module {
       (ioIDU.memCtrl =/= mem.NOP)       -> LSUReady,
       (ioIDU.mulCtrl =/= mul.NOP)       -> MULReady,
       (ioIDU.excType === exc.EBREAK)    -> true.B, // for npc
+      (ioIDU.excType === exc.ILLEGAL_INST) -> true.B,
       (ioIDU.excType === exc.FENCE)     -> true.B,
       (ioIDU.excType === exc.WFI)       -> true.B,
       isFenceI                          -> true.B,

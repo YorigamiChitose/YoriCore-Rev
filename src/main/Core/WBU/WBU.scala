@@ -22,7 +22,7 @@ class WBU extends Module {
 
   val isFenceI = ioEXU.excType === exc.FENCE_I
   ioCtrl.flushReq := ioValid &&
-    ((ioEXU.excType === exc.ECALL) || (ioEXU.excType === exc.MRET) || (ioEXU.excType === exc.SRET) || isFenceI) // 冲刷请求
+    ((ioEXU.excType === exc.ECALL) || (ioEXU.excType === exc.MRET) || (ioEXU.excType === exc.SRET) || (ioEXU.excType === exc.ILLEGAL_INST) || isFenceI) // 冲刷请求
   ioCtrl.flushPC := Mux(ioValid && isFenceI, ioEXU.pc + (Config.Inst.Width / 8).U, ioCSRWBU.flushPC) // 冲刷地址
   ioFenceI       := ioValid && isFenceI
 

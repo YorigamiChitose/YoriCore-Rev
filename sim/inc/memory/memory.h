@@ -37,11 +37,5 @@ uint32_t pmem_read(uint32_t addr, int len);
 void pmem_write(uint32_t addr, int len, uint32_t data);
 void init_mem(void);
 
-// halt/tohost 1-byte 设备状态
-uint8_t halt_get_value(void);
-void halt_reset(void);
-bool halt_access_error(void);
-void halt_mark_error(void);
-void halt_write_byte(unsigned data);
 
 #endif

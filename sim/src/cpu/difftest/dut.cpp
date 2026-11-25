@@ -17,11 +17,17 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 bool enable_difftest = false;
 static bool is_skip_ref = false;
 static int skip_dut_nr_inst = 0;
+static int skip_irq_nr_inst = 0;
 
 void difftest_skip_ref(void) {
   if (!enable_difftest) return;
   is_skip_ref = true;
   skip_dut_nr_inst = 0;
+}
+
+void difftest_skip_irq(void) {
+  if (!enable_difftest) return;
+  skip_irq_nr_inst = 64;
 }
 
 void difftest_skip_dut(int nr_ref, int nr_dut) {
@@ -79,6 +85,11 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
   if (!enable_difftest) return;
 
   CPU_state ref_r;
+
+  if (skip_irq_nr_inst > 0) {
+    skip_irq_nr_inst--;
+    difftest_skip_ref();
+  }
 
   if (skip_dut_nr_inst > 0) {
     ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);

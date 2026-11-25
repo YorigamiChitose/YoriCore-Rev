@@ -45,11 +45,29 @@ object Config {
     val Size = 0x1000_0000L // 16MB
   }
 
+  object Device {
+    val SysconBase = 0x0010_0000L
+    val SysconSize = 0x1000L
+    val PlicBase  = 0x0c00_0000L
+    val PlicSize  = 0x0040_0000L
+    val ClintBase = 0x0200_0000L
+    val ClintSize = 0xc000L
+    val RtcBase  = 0x0010_1000L
+    val RtcSize  = 0x1000L
+    val UartBase = 0x1000_0000L
+    val UartSize = 0x1000L
+    val HaltBase = 0xf000_0000L
+    val HaltSize = 0x1000L
+  }
+
   object Mmio {
     // 不可缓存（直通）设备区间：Seq[(起始地址, 大小字节)]
-    // 与仿真侧 sim/src/device/device.cpp 的设备表保持一致（单一契约）
+    // 与 Tools.Top.deviceRegions 保持一致（单一契约）
     val Devices: Seq[(Long, Long)] = Seq(
-      (0x0200_b000L, 0x1000L), // RTC（只读 64 位微秒，ysyx 约定）
+      (0x0010_0000L, 0x1000L), // SYSCON
+      (0x0200_0000L, 0xc000L), // CLINT
+      (0x0010_1000L, 0x1000L), // RTC（只读 64 位微秒，ysyx 约定）
+      (0x0c00_0000L, 0x0040_0000L), // PLIC
       (0x1000_0000L, 0x1000L), // UART (ns16550)，预留 4KB
       (0xf000_0000L, 0x1000L)  // halt（单字节写，4KB 即可）
     )

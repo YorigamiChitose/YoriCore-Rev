@@ -19,6 +19,27 @@ class SimTop extends Module {
 
   core.ioAxi <> ram.io.axi
 
+  val simTime = Module(new SimTime)
+  simTime.io.clock := clock
+  simTime.io.reset := reset
+  core.ioRtcTime := simTime.io.rtcTime
+  core.ioPlicSources := 0.U
+
+  val simSyscon = Module(new SimSyscon)
+  simSyscon.io.clock := clock
+  simSyscon.io.reset := reset
+  simSyscon.io.exit  := core.ioSyscon
+
+  val simUart = Module(new SimUart)
+  simUart.io.clock := clock
+  simUart.io.reset := reset
+  simUart.io.tx    := core.ioUart
+
+  val simHalt = Module(new SimHalt)
+  simHalt.io.clock := clock
+  simHalt.io.reset := reset
+  simHalt.io.halt  := core.ioHalt
+
   if (Config.Sim.Enable) {
     val tap = core.simTap.get
 
