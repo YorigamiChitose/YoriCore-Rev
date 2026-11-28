@@ -32,9 +32,23 @@ static void apply_commit(const CommitEvent &c) {
   cpu.gpr[0] = 0;
 }
 
-// HALT 由 RTL 设备完成；提交级只负责结束仿真。
+// HALT 由 RTL 设备完成；提交级提供平台退出兜底。
 static bool handle_halt(const CommitEvent &c) {
-  return c.mem_valid && c.mem_addr == (uint32_t)CONFIG_HALT_ADDR;
+  if (!(c.mem_valid && c.mem_addr == (uint32_t)CONFIG_HALT_ADDR)) return false;
+  if (npc_state.state != NPC_RUNNING) return true;
+  if (!c.mem_write) return true;
+  uint8_t v = (uint8_t)(c.mem_wdata & 0xff);
+  if (v == 0) return true;
+  if (v & 1) {
+    int code = v >> 1;
+    if (code == 0) printf(ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN));
+    else printf(ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED) " (code=%d)", code);
+    printf(" at pc = " FMT_WORD "\n", c.pc);
+    set_npc_state(NPC_END, c.pc, code);
+  } else {
+    set_npc_state(NPC_ABORT, c.pc, -1);
+  }
+  return true;
 }
 
 static bool drain_commits(void) {

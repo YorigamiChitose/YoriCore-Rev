@@ -40,6 +40,8 @@ class SimTop extends Module {
   simHalt.io.reset := reset
   simHalt.io.halt  := core.ioHalt
 
+
+
   if (Config.Sim.Enable) {
     val obsTap = core.obsTap.get
 
